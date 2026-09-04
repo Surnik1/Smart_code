@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Управление классом {{ classroom.name }} — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="h2 fw-bold mb-0 text-light">Класс: {{ classroom.name }}</h1>
+                <span class="badge bg-warning text-dark font-monospace fs-6 px-3 py-1">
+                    Код: {{ classroom.code }}
+                </span>
+            </div>
+            <p class="text-muted mb-0">
+                Преподаватель: <strong>{{ classroom.teacher.username }}</strong> &bull; Дата создания: {{ classroom.created_at|date:"d.m.Y" }}
+            </p>
+        </div>
+        <a href="{% url 'classroom_list' %}" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-center">
+            <i class="bi bi-arrow-left me-1"></i>Все классы
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Левая колонка: Ученики класса -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-people me-2 text-info"></i>Ученики класса
+                    </h5>
+                    <span class="badge bg-primary rounded-pill">{{ students.count }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="p-3 bg-dark rounded border border-secondary-subtle mb-3">
+                        <small class="text-muted d-block mb-1">Код для приглашения учеников:</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold font-monospace fs-4 text-warning">{{ classroom.code }}</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-3" 
+                                    onclick="navigator.clipboard.writeText('{{ classroom.code }}'); alert('Код скопирован в буфер обмена!');">
+                                <i class="bi bi-clipboard me-1"></i>Копировать
+                            </button>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold small text-uppercase text-muted mb-3">Список участников:</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for student in students %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="user-avatar-circle" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                        {{ student.username|first|upper }}
+                                    </div>
+                                    <div>
+                                        <span class="fw-semibold d-block text-light">{{ student.username }}</span>
+                                        <small class="text-muted">{{ student.email|default:"email не указан" }}</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    Активен
+                                </span>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item px-0 text-muted py-4 text-center">
+                                В классе пока нет учеников.<br>Отправьте код <strong class="text-warning">{{ classroom.code }}</strong> ученикам для подключения.
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: Задания класса -->
+        <div class="col-lg-7">
+            {% if user == classroom.teacher %}
+                <!-- Назначение нового задания -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header py-3">
+                        <h5 class="card-title mb-0 fw-bold text-success">
+                            <i class="bi bi-journal-plus me-2"></i>Назначить задачу классу
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" class="row g-2 align-items-center">
+                            {% csrf_token %}
+                            <div class="col-md-8">
+                                <select name="task_id" class="form-select" required>
+                                    <option value="" selected disabled>-- Выберите задачу из каталога --</option>
+                                    {% for task in all_tasks %}
+                                        <option value="{{ task.id }}">{{ task.title }} ({{ task.get_difficulty_display }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" name="assign_task" class="btn btn-success w-100 fw-semibold">
+                                    <i class="bi bi-send me-1"></i>Назначить ДЗ
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-journal-check me-2 text-primary"></i>Назначенные задания
+                    </h5>
+                    <span class="badge bg-secondary">{{ assigned_tasks.count }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for item in assigned_tasks %}
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-light">{{ item.task.title }}</h6>
+                                    <small class="text-muted">
+                                        Назначено: {{ item.created_at|date:"d.m.Y H:i" }} &bull; Сложность: {{ item.task.get_difficulty_display }}
+                                    </small>
+                                </div>
+                                <a href="{% url 'task_detail' item.task.slug %}" class="btn btn-outline-primary btn-sm px-3">
+                                    Перейти к задаче <i class="bi bi-arrow-right ms-1"></i>
+                                </a>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-muted text-center py-4">
+                                Этому классу еще не назначено ни одного задания.
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+class Tag(models.Model):
+    """Модель тега/категории задачи (например: Строки, Массивы, Рекурсия)"""
+    name = models.CharField(max_length=50, unique=True, verbose_name="Название тега")
+    slug = models.SlugField(max_length=50, unique=True, verbose_name="URL-слаг")
+    color = models.CharField(max_length=30, default="primary", verbose_name="Стиль/Цвет бейджа")
+
+    def __str__(self):
+        return f"#{self.name}"
+
+    class Meta:
+        verbose_name = "Тег"
+        verbose_name_plural = "Теги"
+        ordering = ['name']
+
+
+class Task(models.Model):
+    """Модель задачи (Каты)"""
+    
+    class Difficulty(models.TextChoices):
+        EASY = 'easy', 'Easy (8-7 kyu)'
+        MEDIUM = 'medium', 'Medium (6-4 kyu)'
+        HARD = 'hard', 'Hard (3-1 kyu)'
+
+    title = models.CharField(max_length=255, verbose_name="Название задачи")
+    slug = models.SlugField(max_length=255, unique=True, verbose_name="URL-слаг")
+    description = models.TextField(verbose_name="Описание задачи (Markdown)")
+    difficulty = models.CharField(
+        max_length=10, 
+        choices=Difficulty.choices, 
+        default=Difficulty.EASY,
+        verbose_name="Сложность"
+    )
+    starter_code = models.TextField(
+        default="def solution():\n    pass", 
+        verbose_name="Начальный шаблон кода"
+    )
+    tags = models.ManyToManyField(
+        Tag, 
+        blank=True, 
+        related_name='tasks', 
+        verbose_name="Теги"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    def __str__(self):
+        return f"[{self.get_difficulty_display()}] {self.title}"
+
+    class Meta:
+        verbose_name = "Задача"
+        verbose_name_plural = "Задачи"
+
+
+class TestCase(models.Model):
+    """Тесты для автоматической проверки решения"""
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='test_cases', verbose_name="Задача")
+    input_data = models.TextField(verbose_name="Входные данные")
+    expected_output = models.TextField(verbose_name="Ожидаемый результат")
+    is_hidden = models.BooleanField(default=False, verbose_name="Скрытый тест?")
+
+    def __str__(self):
+        test_type = "Скрытый" if self.is_hidden else "Открытый"
+        return f"{test_type} тест для {self.task.title}"
+
+    class Meta:
+        verbose_name = "Тест-кейс"
+        verbose_name_plural = "Тест-кейсы"
+
+
+class Submission(models.Model):
+    """Отправленное пользователем решение"""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'В очереди'
+        PASSED = 'passed', 'Пройдено'
+        FAILED = 'failed', 'Ошибка в тестах'
+        ERROR = 'error', 'Ошибка выполнения (Runtime Error)'
+        TIMEOUT = 'timeout', 'Превышено время ожидания'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions', verbose_name="Пользователь")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='submissions', verbose_name="Задача")
+    code = models.TextField(verbose_name="Отправленный код")
+    status = models.CharField(
+        max_length=10, 
+        choices=Status.choices, 
+        default=Status.PENDING,
+        verbose_name="Статус"
+    )
+    execution_time = models.FloatField(null=True, blank=True, verbose_name="Время выполнения (сек)")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата отправки")
+
+    def __str__(self):
+        return f"Решение {self.user.username} - {self.task.title} ({self.get_status_display()})"
+
+    class Meta:
+        verbose_name = "Отправленное решение"
+        verbose_name_plural = "Отправленные решения"
+
+
+class Assignment(models.Model):
+    """Модель назначения задачи конкретному классу (ДЗ / Классная работа)"""
+    classroom = models.ForeignKey('accounts.Classroom', on_delete=models.CASCADE, related_name='assignments', verbose_name="Класс")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='assignments', verbose_name="Задача")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата назначения")
+
+    def __str__(self):
+        return f"Задание '{self.task.title}' для класса '{self.classroom.name}'"
+
+    class Meta:
+        verbose_name = "Задание класса"
+        verbose_name_plural = "Задания классов"

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow border-0">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <div class="display-6 text-primary mb-2">
+                            <i class="bi bi-person-plus"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-1 text-light">Регистрация</h2>
+                        <p class="text-muted small">Присоединяйтесь к сообществу Smart Code</p>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger small py-2">
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">{{ field.label }}</label>
+                                {{ field }}
+                                
+                                {% if field.errors %}
+                                    <div class="text-danger mt-1 small fw-semibold">
+                                        {% for error in field.errors %}
+                                            <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted small" style="font-size: 0.78rem;">
+                                        {{ field.help_text|safe }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm mt-3">
+                            <i class="bi bi-check2 me-1"></i>Зарегистрироваться
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top border-secondary-subtle">
+                        <span class="text-muted small">Уже зарегистрированы?</span>
+                        <a href="{% url 'login' %}" class="small fw-semibold text-primary text-decoration-none ms-1">Войти</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

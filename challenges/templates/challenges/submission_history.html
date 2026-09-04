@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои решения — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 fw-bold mb-1 text-light">
+                <i class="bi bi-clock-history text-success me-2"></i>История моих решений
+            </h1>
+            <p class="text-muted mb-0">Все отправленные вами решения и результаты тестирования</p>
+        </div>
+        <a href="{% url 'task_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>В каталог
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark border-bottom border-secondary-subtle">
+                        <tr>
+                            <th class="py-3 ps-4 text-muted small text-uppercase">Дата и время</th>
+                            <th class="py-3 text-muted small text-uppercase">Задача</th>
+                            <th class="py-3 text-muted small text-uppercase">Статус</th>
+                            <th class="py-3 text-muted small text-uppercase">Время выполнения</th>
+                            <th class="py-3 pe-4 text-muted small text-uppercase">Код решения</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in submissions %}
+                            <tr>
+                                <td class="ps-4 text-muted small">
+                                    {{ sub.created_at|date:"d.m.Y H:i" }}
+                                </td>
+                                <td class="fw-bold">
+                                    <a href="{% url 'task_detail' sub.task.slug %}" class="text-decoration-none text-light hover-primary">
+                                        {{ sub.task.title }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if sub.status == 'passed' %}
+                                        <span class="badge bg-success px-2 py-1">
+                                            <i class="bi bi-check-circle me-1"></i>Пройдено
+                                        </span>
+                                    {% elif sub.status == 'failed' %}
+                                        <span class="badge bg-danger px-2 py-1">
+                                            <i class="bi bi-x-circle me-1"></i>Неверно
+                                        </span>
+                                    {% elif sub.status == 'timeout' %}
+                                        <span class="badge bg-warning text-dark px-2 py-1">
+                                            <i class="bi bi-clock me-1"></i>Таймаут
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary px-2 py-1">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>Ошибка
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sub.execution_time is not None %}
+                                        <span class="text-info small font-monospace">{{ sub.execution_time }} сек</span>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="pe-4">
+                                    <code class="text-light small bg-dark p-1 rounded border border-secondary-subtle font-monospace">
+                                        {{ sub.code|truncatechars:50 }}
+                                    </code>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    <i class="bi bi-journal-x display-6 d-block mb-2 text-muted opacity-50"></i>
+                                    Вы пока не отправляли решений. Перейдите в <a href="{% url 'task_list' %}" class="text-primary">каталог задач</a> и начните свой путь!
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

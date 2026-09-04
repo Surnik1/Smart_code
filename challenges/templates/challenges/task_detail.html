@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+{% load markdown_extras %}
+
+{% block title %}{{ task.title }} — Smart Code{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-workspace {
+        height: calc(100vh - 135px);
+        min-height: 580px;
+    }
+    #monaco-container {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+        border-radius: 0;
+        overflow: hidden;
+    }
+    .description-pane {
+        overflow-y: auto;
+        max-height: calc(100vh - 135px);
+    }
+    .editor-card {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .ai-assistant-card {
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(20, 29, 47, 0.98) 0%, rgba(10, 14, 23, 0.98) 100%);
+        border: 1px solid rgba(6, 182, 212, 0.3) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    /* Стили Markdown для условий задач и AI Ментора */
+    .task-description, .ai-assistant-card {
+        color: #e2e8f0;
+    }
+    .task-description h1, .task-description h2, .task-description h3, .task-description h4,
+    .ai-assistant-card h1, .ai-assistant-card h2, .ai-assistant-card h3, .ai-assistant-card h4 {
+        color: #f8fafc;
+        font-weight: 700;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+    .task-description strong, .ai-assistant-card strong {
+        color: #f8fafc;
+        font-weight: 700;
+    }
+    .task-description p, .ai-assistant-card p {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+    .task-description ul, .task-description ol,
+    .ai-assistant-card ul, .ai-assistant-card ol {
+        padding-left: 1.35rem;
+        margin-bottom: 0.85rem;
+    }
+    .task-description li, .ai-assistant-card li {
+        margin-bottom: 0.4rem;
+        line-height: 1.5;
+    }
+    .task-description code, .ai-assistant-card code {
+        background-color: rgba(56, 189, 248, 0.12);
+        color: #38bdf8;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .task-description pre, .ai-assistant-card pre {
+        background-color: #0b101a;
+        border: 1px solid #233148;
+        border-radius: 8px;
+        padding: 12px;
+        color: #38bdf8;
+        overflow-x: auto;
+        margin-top: 0.6rem;
+        margin-bottom: 0.8rem;
+    }
+    .task-description pre code, .ai-assistant-card pre code {
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: inherit;
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <!-- Верхняя панель навигации задачи -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary-subtle">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'task_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>В каталог
+            </a>
+            <h4 class="mb-0 fw-bold text-light">{{ task.title }}</h4>
+            {% if task.difficulty == 'easy' %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Легкая</span>
+            {% elif task.difficulty == 'medium' %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Средняя</span>
+            {% else %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Сложная</span>
+            {% endif %}
+            {% for tag in task.tags.all %}
+                <span class="badge bg-dark border border-secondary text-info font-monospace small">#{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+        <div class="text-muted small">
+            Тест-кейсов: <strong class="text-info">{{ task.test_cases.count }}</strong>
+        </div>
+    </div>
+
+    <div class="row g-3 task-workspace">
+        <!-- Левая панель: Условие задачи и результат -->
+        <div class="col-lg-5 d-flex flex-column description-pane pe-lg-3">
+            <div class="card border-0 shadow-sm flex-grow-1 mb-3">
+                <div class="card-header py-3 fw-bold">
+                    <i class="bi bi-file-text me-2 text-primary"></i>Условие задачи
+                </div>
+                <div class="card-body">
+                    <div class="task-description lh-base text-light">
+                        {{ task.description|render_markdown }}
+                    </div>
+
+                    <div class="mt-4 p-3 bg-dark rounded border border-secondary-subtle">
+                        <h6 class="fw-bold mb-2 small text-uppercase text-muted">
+                            <i class="bi bi-info-circle me-1 text-info"></i>Формат решения
+                        </h6>
+                        <small class="text-muted d-block">
+                            Напишите функцию <code>solution(...)</code>. Функция должна принимать входные аргументы и возвращать результат через <code>return</code>.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок результатов тестирования -->
+            <div id="result-card" class="card border-0 shadow-sm {% if not result %}d-none{% endif %}">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-terminal me-2 text-info"></i>Результат проверки</span>
+                    <span id="exec-time" class="badge bg-secondary">
+                        {% if result.execution_time %}{{ result.execution_time }} сек{% endif %}
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <div id="result-alert" class="alert {% if result.passed %}alert-success{% else %}alert-danger{% endif %} mb-0 border-0">
+                        <span id="result-message">{{ result.message }}</span>
+                    </div>
+                    {% if not user.is_authenticated %}
+                        <div class="mt-2 small text-muted">
+                            <i class="bi bi-info-circle me-1"></i><a href="{% url 'login' %}" class="text-info">Войдите</a>, чтобы результат сохранился в вашей истории решений.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Блок AI-Помощника (Подсказки и Code Review) -->
+            <div id="ai-card" class="card ai-assistant-card mt-3 shadow-sm d-none">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center bg-dark bg-opacity-50 border-bottom border-secondary-subtle">
+                    <span class="fw-semibold text-info small" id="ai-card-title">
+                        <i class="bi bi-robot me-2"></i>AI-Ментор Smart Code
+                    </span>
+                    <button type="button" class="btn-close btn-close-white btn-sm" id="btn-close-ai" aria-label="Закрыть"></button>
+                </div>
+                <div class="card-body p-3">
+                    <div id="ai-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border spinner-border-sm text-info mb-2" role="status"></div>
+                        <div class="small text-muted" id="ai-loading-text">ИИ обдумывает подсказку...</div>
+                    </div>
+                    <div id="ai-content" class="text-light small lh-base"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая панель: Редактор Monaco и панель запуска -->
+        <div class="col-lg-7 d-flex flex-column h-100 ps-lg-2">
+            <div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column editor-card">
+                <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center border-bottom border-secondary-subtle">
+                    <span class="small fw-semibold font-monospace text-light">
+                        <i class="bi bi-filetype-py me-2 text-warning"></i>solution.py
+                    </span>
+                    <button type="button" id="reset-code-btn" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.8rem;">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Сбросить код
+                    </button>
+                </div>
+
+                <form id="code-form" method="POST" class="flex-grow-1 d-flex flex-column mb-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="code" id="hidden-code-input">
+
+                    <div id="monaco-container" class="flex-grow-1"></div>
+
+                    <div class="p-3 bg-dark border-top border-secondary-subtle d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" id="btn-ai-hint" class="btn btn-outline-info btn-sm fw-semibold shadow-sm">
+                                <i class="bi bi-lightbulb me-1"></i>AI-Подсказка
+                            </button>
+                            <button type="button" id="btn-ai-review" class="btn btn-outline-warning btn-sm fw-semibold shadow-sm {% if not result or not result.passed %}d-none{% endif %}">
+                                <i class="bi bi-rocket-takeoff me-1"></i>AI-Анализ кода
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="text-muted small d-none d-md-inline">
+                                <kbd class="bg-secondary text-light">Ctrl</kbd> + <kbd class="bg-secondary text-light">Enter</kbd>
+                            </span>
+                            <button type="submit" id="submit-btn" class="btn btn-success px-4 fw-semibold shadow-sm">
+                                <i class="bi bi-play-fill me-1"></i>Отправить решение
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const defaultStarterCode = `{{ task.starter_code|escapejs }}`;
+    let editor = null;
+    let lastTestError = '';
+
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('monaco-container'), {
+            value: `{{ current_code|escapejs }}`,
+            language: 'python',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            fontSize: 14,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            tabSize: 4,
+            insertSpaces: true
+        });
+
+        // Горячая клавиша Ctrl+Enter для запуска тестов
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+            document.getElementById('code-form').dispatchEvent(new Event('submit', { cancelable: true }));
+        });
+    });
+
+    // Сброс кода к дефолтному шаблону
+    document.getElementById('reset-code-btn').addEventListener('click', function() {
+        if (confirm('Сбросить текущий код к начальному шаблону задачи?')) {
+            if (editor) {
+                editor.setValue(defaultStarterCode);
+            }
+        }
+    });
+
+    // Очистка LaTeX-формул на фронтенде
+    function cleanLatexMath(text) {
+        if (!text) return '';
+        return text
+            .replace(/\$\s*\\mathcal\{[Oo]\}\((.*?)\)\s*\$/g, 'O($1)')
+            .replace(/\\mathcal\{[Oo]\}\((.*?)\)/g, 'O($1)')
+            .replace(/\$\s*O\((.*?)\)\s*\$/g, 'O($1)')
+            .replace(/\$\s*\\Theta\((.*?)\)\s*\$/g, 'Θ($1)')
+            .replace(/\$\s*\\Omega\((.*?)\)\s*\$/g, 'Ω($1)')
+            .replace(/\$([A-Za-z0-9_+\-*^/ ]+)\$/g, '$1');
+    }
+
+    // Фоллбэк парсер простого Markdown, если CDN не загрузился
+    function parseSimpleMarkdown(text) {
+        let esc = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Блоки кода ```python ... ```
+        esc = esc.replace(/```(?:python)?\s*([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // Инлайн код `...`
+        esc = esc.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        // Жирный текст **...**
+        esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Заголовки ###, ##, #
+        esc = esc.replace(/^###\s*(.*$)/gim, '<h4>$1</h4>');
+        esc = esc.replace(/^##\s*(.*$)/gim, '<h3>$1</h3>');
+        esc = esc.replace(/^#\s*(.*$)/gim, '<h2>$1</h2>');
+        // Списки - пункт или * пункт
+        esc = esc.replace(/^\s*[-*]\s+(.*$)/gim, '<li>$1</li>');
+        // Переносы строк
+        esc = esc.replace(/\n\n+/g, '<br><br>');
+        esc = esc.replace(/\n/g, '<br>');
+
+        return esc;
+    }
+
+    // Безопасный рендеринг Markdown для подсказок и ревью
+    function renderMarkdown(mdText) {
+        if (!mdText) return '';
+        const cleaned = cleanLatexMath(mdText);
+        const parser = window.marked || window.globalMarked;
+        if (parser && typeof parser.parse === 'function') {
+            return parser.parse(cleaned);
+        }
+        return parseSimpleMarkdown(cleaned);
+    }
+
+    // AI Ментор и Рецензент
+    const aiCard = document.getElementById('ai-card');
+    const aiCardTitle = document.getElementById('ai-card-title');
+    const aiLoading = document.getElementById('ai-loading');
+    const aiLoadingText = document.getElementById('ai-loading-text');
+    const aiContent = document.getElementById('ai-content');
+    const btnCloseAi = document.getElementById('btn-close-ai');
+    const btnAiHint = document.getElementById('btn-ai-hint');
+    const btnAiReview = document.getElementById('btn-ai-review');
+
+    btnCloseAi.addEventListener('click', function() {
+        aiCard.classList.add('d-none');
+    });
+
+    async function runAiHint() {
+        if (!editor) return;
+        const code = editor.getValue().trim();
+        if (!code) {
+            alert('Пожалуйста, напишите хотя бы часть решения, чтобы ИИ-Ментор мог дать подсказку!');
+            return;
+        }
+
+        aiCard.classList.remove('d-none');
+        aiCardTitle.innerHTML = '<i class="bi bi-lightbulb-fill text-warning me-2"></i>AI-Ментор: Подсказка по логике';
+        aiLoading.classList.remove('d-none');
+        aiLoadingText.textContent = 'ИИ обдумывает наводящую подсказку...';
+        aiContent.innerHTML = '';
+        btnAiHint.disabled = true;
+
+        aiCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch("{% url 'api_code_hint' task.slug %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    code: code,
+                    error: lastTestError
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Не удалось получить подсказку от ИИ.');
+            }
+
+            aiContent.innerHTML = renderMarkdown(data.hint);
+        } catch (err) {
+            aiContent.innerHTML = `<div class="alert alert-danger mb-0 border-0"><i class="bi bi-exclamation-octagon me-1"></i>${err.message}</div>`;
+        } finally {
+            aiLoading.classList.add('d-none');
+            btnAiHint.disabled = false;
+        }
+    }
+
+    async function runAiReview() {
+        if (!editor) return;
+        const code = editor.getValue().trim();
+        if (!code) {
+            alert('Код решения пуст!');
+            return;
+        }
+
+        aiCard.classList.remove('d-none');
+        aiCardTitle.innerHTML = '<i class="bi bi-rocket-takeoff-fill text-warning me-2"></i>AI Code Review: Big-O и Рефакторинг';
+        aiLoading.classList.remove('d-none');
+        aiLoadingText.textContent = 'Senior Tech Lead проводит детальный аудит решения...';
+        aiContent.innerHTML = '';
+        btnAiReview.disabled = true;
+
+        aiCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch("{% url 'api_code_review' task.slug %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ code: code })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Не удалось получить рецензию от ИИ.');
+            }
+
+            aiContent.innerHTML = renderMarkdown(data.review);
+        } catch (err) {
+            aiContent.innerHTML = `<div class="alert alert-danger mb-0 border-0"><i class="bi bi-exclamation-octagon me-1"></i>${err.message}</div>`;
+        } finally {
+            aiLoading.classList.add('d-none');
+            btnAiReview.disabled = false;
+        }
+    }
+
+    btnAiHint.addEventListener('click', runAiHint);
+    btnAiReview.addEventListener('click', runAiReview);
+
+    // AJAX отправка решения через Fetch API
+    const codeForm = document.getElementById('code-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const resultCard = document.getElementById('result-card');
+    const resultAlert = document.getElementById('result-alert');
+    const resultMessage = document.getElementById('result-message');
+    const execTimeBadge = document.getElementById('exec-time');
+
+    codeForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (!editor) return;
+
+        const codeValue = editor.getValue();
+        document.getElementById('hidden-code-input').value = codeValue;
+
+        // Состояние отправки
+        submitBtn.disabled = true;
+        const originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Проверка тестов...`;
+
+        const formData = new FormData();
+        formData.append('code', codeValue);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                resultCard.classList.remove('d-none');
+
+                if (data.passed) {
+                    resultAlert.className = 'alert alert-success mb-0 border-0';
+                    resultMessage.innerHTML = `
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div><strong>🎉 Успех!</strong> ${data.message}</div>
+                            <button type="button" id="quick-review-btn" class="btn btn-sm btn-warning fw-semibold shadow-sm">
+                                <i class="bi bi-rocket-takeoff-fill me-1"></i>AI-Разбор решения
+                            </button>
+                        </div>
+                    `;
+                    btnAiReview.classList.remove('d-none');
+                    document.getElementById('quick-review-btn')?.addEventListener('click', runAiReview);
+                } else {
+                    lastTestError = data.message;
+                    resultAlert.className = 'alert alert-danger mb-0 border-0';
+                    resultMessage.innerHTML = `
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div><strong>⚠️ Ошибка:</strong> ${data.message}</div>
+                            <button type="button" id="quick-hint-btn" class="btn btn-sm btn-outline-light fw-semibold">
+                                <i class="bi bi-lightbulb-fill text-warning me-1"></i>Спросить совет ИИ
+                            </button>
+                        </div>
+                    `;
+                    document.getElementById('quick-hint-btn')?.addEventListener('click', runAiHint);
+                }
+
+                if (data.execution_time !== undefined) {
+                    execTimeBadge.textContent = `${data.execution_time} сек`;
+                    execTimeBadge.classList.remove('d-none');
+                } else {
+                    execTimeBadge.classList.add('d-none');
+                }
+
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                resultCard.classList.remove('d-none');
+                resultAlert.className = 'alert alert-danger mb-0 border-0';
+                resultMessage.textContent = 'Произошла ошибка при обращении к серверу проверки.';
+            }
+        } catch (err) {
+            resultCard.classList.remove('d-none');
+            resultAlert.className = 'alert alert-danger mb-0 border-0';
+            resultMessage.textContent = 'Ошибка сети или сервер недоступен.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+        }
+    });
+</script>
+{% endblock %}

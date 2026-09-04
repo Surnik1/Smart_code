@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234F46E5'/><path d='M30 38 L18 50 L30 62' stroke='%23FFF' stroke-width='8' stroke-linecap='round' fill='none'/><path d='M70 38 L82 50 L70 62' stroke='%23FFF' stroke-width='8' stroke-linecap='round' fill='none'/><path d='M58 32 L42 68' stroke='%2300F0FF' stroke-width='8' stroke-linecap='round'/></svg>">
+    <title>{% block title %}Smart Code — Платформа для программирования{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS (Dark Mode enabled) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        if (window.marked) {
+            window.globalMarked = window.marked;
+        }
+    </script>
+    
+    <style>
+        :root {
+            --bg-body: #0a0e17;
+            --bg-surface: #111827;
+            --bg-card: #141d2f;
+            --bg-card-header: #182338;
+            --border-color: #233148;
+            --border-light: #2d3e5b;
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --cyan-accent: #06b6d4;
+            --emerald-accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* Navbar стили */
+        .navbar-custom {
+            background-color: rgba(11, 16, 26, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .navbar-brand svg {
+            transition: transform 0.25s ease, filter 0.25s ease;
+        }
+        .navbar-brand:hover svg {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.6));
+        }
+
+        /* Кнопки */
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            border-color: #4f46e5;
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-color: #10b981;
+        }
+
+        /* Карточки */
+        .card {
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+            border-radius: 12px;
+        }
+        .card-header {
+            background-color: var(--bg-card-header) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+        }
+
+        /* Списки */
+        .list-group-item {
+            background-color: var(--bg-card) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-main) !important;
+        }
+        .list-group-item-action:hover {
+            background-color: #18243c !important;
+        }
+
+        /* Поля ввода */
+        .form-control, .form-select {
+            background-color: #0d131f !important;
+            border: 1px solid var(--border-color) !important;
+            color: #f1f5f9 !important;
+            border-radius: 8px;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #0d131f !important;
+            border-color: var(--primary-color) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25) !important;
+        }
+        .form-control::placeholder {
+            color: #64748b !important;
+        }
+        .input-group-text {
+            background-color: #162035 !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-muted) !important;
+        }
+
+        /* Таблицы */
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: #f1f5f9;
+            --bs-table-border-color: var(--border-color);
+        }
+        .table-hover > tbody > tr:hover > * {
+            --bs-table-hover-bg: #18243c;
+        }
+        .table-light, thead.table-light th {
+            background-color: #162035 !important;
+            color: #94a3b8 !important;
+            border-bottom-color: var(--border-color) !important;
+        }
+
+        /* Дропдаун профиля */
+        .dropdown-menu-dark {
+            background-color: #141d2f !important;
+            border: 1px solid var(--border-light) !important;
+            box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6) !important;
+            border-radius: 10px;
+        }
+        .dropdown-item {
+            color: #cbd5e1 !important;
+            padding: 9px 16px;
+            transition: all 0.15s ease;
+        }
+        .dropdown-item:hover {
+            background-color: #1f2d48 !important;
+            color: #ffffff !important;
+            transform: translateX(3px);
+        }
+        .dropdown-divider {
+            border-top-color: var(--border-color) !important;
+        }
+
+        /* Бейджи */
+        .badge-teacher {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: #fff;
+        }
+        .badge-student {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+
+        /* Аватар пользователя */
+        .user-avatar-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+        }
+
+        footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            background-color: #0b101a;
+            color: #64748b;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Навигационная панель -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'task_list' %}">
+                <svg width="34" height="34" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" rx="22" fill="#4F46E5" />
+                    <path d="M30 38 L18 50 L30 62" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M70 38 L82 50 L70 62" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M58 32 L42 68" stroke="#00F0FF" stroke-width="8" stroke-linecap="round" />
+                </svg>
+                <span class="fs-5 tracking-tight">Smart<span class="text-info">Code</span></span>
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Навигация">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <!-- Ссылки слева -->
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link px-3" href="{% url 'task_list' %}">
+                            <i class="bi bi-code-square me-1 text-primary"></i>Каталог задач
+                        </a>
+                    </li>
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{% url 'student_assignments' %}">
+                                <i class="bi bi-journal-bookmark-fill me-1 text-warning"></i>Задания классов
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3" href="{% url 'classroom_list' %}">
+                                <i class="bi bi-people-fill me-1 text-info"></i>Мои классы
+                            </a>
+                        </li>
+                        {% if user.profile.role == 'teacher' %}
+                            <li class="nav-item">
+                                <a class="nav-link px-3 text-success fw-semibold" href="{% url 'create_task' %}">
+                                    <i class="bi bi-plus-circle-fill me-1"></i>Создать задачу
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+
+                <!-- Блок пользователя справа -->
+                <div class="d-flex align-items-center gap-2">
+                    {% if user.is_authenticated %}
+                        <!-- Выпадающее меню профиля (Dropdown) -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-dark border-secondary-subtle d-flex align-items-center gap-2 py-1 px-3 rounded-pill dropdown-toggle" 
+                                    type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #141d2f;">
+                                <div class="user-avatar-circle">
+                                    {{ user.username|first|upper }}
+                                </div>
+                                <div class="text-start d-none d-sm-block">
+                                    <div class="fw-bold lh-1 text-light" style="font-size: 0.88rem;">{{ user.username }}</div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">
+                                        {% if user.profile.role == 'teacher' %}Учитель{% else %}Ученик{% endif %}
+                                    </small>
+                                </div>
+                            </button>
+
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow" aria-labelledby="userMenuDropdown" style="min-width: 230px;">
+                                <li class="px-3 py-2 border-bottom border-secondary-subtle">
+                                    <div class="fw-bold text-white">{{ user.username }}</div>
+                                    <div class="small text-muted">
+                                        {% if user.profile.role == 'teacher' %}
+                                            <span class="badge badge-teacher">Преподаватель</span>
+                                        {% else %}
+                                            <span class="badge badge-student">Ученик</span>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'student_assignments' %}">
+                                        <i class="bi bi-journal-check me-2 text-warning"></i>Задания классов (ДЗ)
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'classroom_list' %}">
+                                        <i class="bi bi-mortarboard me-2 text-info"></i>Управление классами
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'submission_history' %}">
+                                        <i class="bi bi-clock-history me-2 text-success"></i>История решений
+                                    </a>
+                                </li>
+                                {% if user.profile.role == 'teacher' %}
+                                    <li>
+                                        <a class="dropdown-item text-success fw-semibold" href="{% url 'create_task' %}">
+                                            <i class="bi bi-plus-circle me-2"></i>Создать задачу
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'profile_settings' %}">
+                                        <i class="bi bi-gear-wide-connected me-2 text-primary"></i>Настройки аккаунта
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm px-3 rounded-pill">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Войти
+                        </a>
+                        <a href="{% url 'register' %}" class="btn btn-primary btn-sm px-3 rounded-pill">
+                            Регистрация
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Системные уведомления messages -->
+    <div class="container mt-3">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert" style="background-color: #182338; color: #f1f5f9; border-left: 4px solid var(--primary-color) !important;">
+                    <i class="bi bi-info-circle me-2 text-info"></i>{{ message }}
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Основной контент страницы -->
+    <main class="flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Подвал сайта -->
+    <footer class="py-4 text-center small">
+        <div class="container">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 text-muted">
+                <span>&copy; Smart Code &bull; Платформа автоматической проверки кода и обучения Python</span>
+                <span class="font-monospace text-secondary" style="font-size: 0.8rem;">Ready for code. Secure sandbox active.</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

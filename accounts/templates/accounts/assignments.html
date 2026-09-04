@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Задания классов (ДЗ) — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h1 class="h2 fw-bold mb-1">
+                <i class="bi bi-journal-bookmark-fill text-warning me-2"></i>Задания моих классов
+            </h1>
+            <p class="text-muted mb-0">
+                {% if is_teacher %}
+                    Задания, которые вы назначили своим группам и классам
+                {% else %}
+                    Домашние и классные работы, назначенные вашими преподавателями
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'classroom_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-people me-1"></i>Мои классы
+            </a>
+            <a href="{% url 'task_list' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-code-square me-1"></i>Общий каталог
+            </a>
+        </div>
+    </div>
+
+    <!-- Список назначенных заданий -->
+    <div class="row g-3">
+        {% for item in assignments %}
+            <div class="col-12">
+                <div class="card p-3 shadow-sm border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                <i class="bi bi-mortarboard me-1"></i>{{ item.classroom.name }}
+                            </span>
+                            <span class="badge bg-dark border border-secondary text-secondary">
+                                Учитель: {{ item.classroom.teacher.username }}
+                            </span>
+                            <small class="text-muted">
+                                <i class="bi bi-calendar-event me-1"></i>Назначено: {{ item.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="mb-0 fw-bold">
+                                <a href="{% url 'task_detail' item.task.slug %}" class="text-decoration-none text-light hover-primary">
+                                    {{ item.task.title }}
+                                </a>
+                            </h5>
+
+                            <!-- Сложность -->
+                            {% if item.task.difficulty == 'easy' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Легкая</span>
+                            {% elif item.task.difficulty == 'medium' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Средняя</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Сложная</span>
+                            {% endif %}
+
+                            <!-- Статус выполнения задания -->
+                            {% if not is_teacher %}
+                                {% if item.task.id in solved_task_ids %}
+                                    <span class="badge bg-success px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Сдано
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark px-2 py-1">
+                                        <i class="bi bi-hourglass-split me-1"></i>Нужно решить
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <a href="{% url 'task_detail' item.task.slug %}" class="btn {% if item.task.id in solved_task_ids %}btn-outline-success{% else %}btn-primary{% endif %} px-4 fw-semibold">
+                            {% if item.task.id in solved_task_ids %}
+                                <i class="bi bi-check-lg me-1"></i>Сдано &bull; Открыть
+                            {% else %}
+                                <i class="bi bi-play-fill me-1"></i>Решать ДЗ
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="card p-5 text-center shadow-sm border-0">
+                    <i class="bi bi-folder-x display-4 text-muted mb-3 opacity-50"></i>
+                    <h5 class="fw-bold">Пока нет назначенных заданий</h5>
+                    <p class="text-muted mb-3">
+                        {% if is_teacher %}
+                            Вы еще не назначали задач своим классам. Перейдите в управление классом и выберите задание!
+                        {% else %}
+                            Учителя ваших классов еще не назначили вам заданий. Либо вы еще не вступили в класс.
+                        {% endif %}
+                    </p>
+                    <div>
+                        <a href="{% url 'classroom_list' %}" class="btn btn-outline-info btn-sm px-3">
+                            <i class="bi bi-people me-1"></i>Перейти к моим классам
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои классы — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+        <div>
+            <h1 class="h2 fw-bold mb-1">
+                <i class="bi bi-people-fill text-info me-2"></i>Управление классами
+            </h1>
+            <p class="text-muted mb-0">
+                {% if profile.role == 'teacher' %}
+                    Создание учебных групп, генерация кодов доступа и контроль учеников
+                {% else %}
+                    Группы и курсы, в которых вы принимаете участие
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'student_assignments' %}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-journal-bookmark me-1"></i>К заданиям классов
+        </a>
+    </div>
+
+    <div class="row g-4">
+        {% if profile.role == 'teacher' %}
+            <!-- КАБИНЕТ УЧИТЕЛЯ -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header py-3 fw-bold">
+                        <i class="bi bi-plus-square text-success me-2"></i>Создать новый класс
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Название класса / группы</label>
+                                {{ create_class_form.name }}
+                                <div class="form-text text-muted small">Например: Python для начинающих (Группа 1)</div>
+                            </div>
+                            <button type="submit" name="create_class" class="btn btn-success w-100 fw-semibold">
+                                <i class="bi bi-magic me-1"></i>Сгенерировать класс и код
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0 fw-bold">
+                            <i class="bi bi-collection text-primary me-2"></i>Созданные классы
+                        </h5>
+                        <span class="badge bg-secondary">{{ taught_classes.count|default:0 }}</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for cls in taught_classes %}
+                                <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1 fw-bold">
+                                            <a href="{% url 'classroom_detail' cls.pk %}" class="text-decoration-none text-light hover-primary">
+                                                {{ cls.name }}
+                                            </a>
+                                        </h5>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-people me-1"></i>Учеников: <strong>{{ cls.students.count }}</strong> &bull; Заданий: <strong>{{ cls.assignments.count }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="d-flex align-items-center gap-2 mb-1 justify-content-end">
+                                            <span class="badge bg-warning text-dark font-monospace fs-6 px-3 py-1">
+                                                {{ cls.code }}
+                                            </span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" 
+                                                    onclick="navigator.clipboard.writeText('{{ cls.code }}'); alert('Код {{ cls.code }} скопирован!');"
+                                                    title="Копировать код">
+                                                <i class="bi bi-clipboard"></i>
+                                            </button>
+                                        </div>
+                                        <a href="{% url 'classroom_detail' cls.pk %}" class="btn btn-outline-primary btn-sm px-3">
+                                            Управление <i class="bi bi-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            {% empty %}
+                                <li class="list-group-item text-muted text-center py-5">
+                                    <i class="bi bi-mortarboard display-6 d-block mb-2 text-muted opacity-50"></i>
+                                    Вы пока не создали ни одного класса. Создайте класс в форме слева!
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- КАБИНЕТ УЧЕНИКА -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header py-3 fw-bold">
+                        <i class="bi bi-key text-primary me-2"></i>Присоединиться к классу
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">{{ join_class_form.code.label }}</label>
+                                {{ join_class_form.code }}
+                                <div class="form-text text-muted small">Введите 6-значный код, который вам дал учитель</div>
+                            </div>
+                            <button type="submit" name="join_class" class="btn btn-primary w-100 fw-semibold">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Войти по коду
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0 fw-bold">
+                            <i class="bi bi-backpack text-info me-2"></i>Классы, в которых вы состоите
+                        </h5>
+                        <span class="badge bg-secondary">{{ joined_classes.count|default:0 }}</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for cls in joined_classes %}
+                                <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-light">{{ cls.name }}</h5>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-person me-1"></i>Учитель: <strong>{{ cls.teacher.username }}</strong> &bull; Заданий: <strong>{{ cls.assignments.count }}</strong>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'student_assignments' %}" class="btn btn-outline-warning btn-sm px-3">
+                                            <i class="bi bi-journal-check me-1"></i>Задания класса
+                                        </a>
+                                    </div>
+                                </li>
+                            {% empty %}
+                                <li class="list-group-item text-muted text-center py-5">
+                                    <i class="bi bi-door-open display-6 d-block mb-2 text-muted opacity-50"></i>
+                                    Вы еще не вступили ни в один класс.<br>Попросите 6-значный код у вашего преподавателя и введите его в форме слева!
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание новой задачи — Smart Code{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="h3 fw-bold mb-1 text-light">
+                                <i class="bi bi-plus-circle-fill text-success me-2"></i>Создание задачи
+                            </h2>
+                            <p class="text-muted mb-0">Заполните условия вручную или сгенерируйте с помощью ИИ</p>
+                        </div>
+                        <a href="{% url 'task_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Отмена
+                        </a>
+                    </div>
+
+                    <!-- Карточка ИИ-генератора задачи -->
+                    <div class="card mb-4 border border-info border-opacity-25" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%);">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="p-2 rounded-3 me-3" style="background: rgba(99, 102, 241, 0.25);">
+                                        <i class="bi bi-stars text-info fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="fw-bold mb-0 text-light">AI-Генератор задач (Gemini Flash)</h5>
+                                        <small class="text-muted">Задайте тему или алгоритм — ИИ сформулирует условие, шаблон и тесты</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-primary bg-opacity-25 text-info border border-info border-opacity-25 px-2 py-1">ИИ-Ассистент</span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="ai-topic-input" class="form-label small text-muted fw-semibold mb-2">
+                                    <i class="bi bi-chat-left-text text-info me-1"></i>Опишите задачу или тему (слова и строки переносятся автоматически):
+                                </label>
+                                <textarea id="ai-topic-input" class="form-control bg-dark text-light border-secondary p-3" rows="3" 
+                                    placeholder="Опишите задачу своими словами... Например:&#10;«Сделай задачу на поиск анаграмм в списке строк, добавь крайние случаи с пустыми строками и 15 проверочных тест-кейсов»" 
+                                    style="resize: vertical; min-height: 95px; line-height: 1.6; font-size: 0.95rem; border-radius: 8px;"></textarea>
+                                
+                                <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1 text-info"></i><kbd class="bg-secondary text-light">Ctrl</kbd> + <kbd class="bg-secondary text-light">Enter</kbd> для быстрой отправки запроса
+                                    </small>
+                                    <button type="button" id="btn-ai-generate" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm">
+                                        <i class="bi bi-magic me-1"></i>Сгенерировать с Gemini
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="ai-status-msg" class="mt-2 small d-none"></div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="task-create-form">
+                        {% csrf_token %}
+                        
+                        <div class="p-3 bg-dark rounded border border-secondary-subtle mb-4">
+                            <h5 class="fw-bold text-info mb-3">
+                                <i class="bi bi-1-circle me-1"></i>Параметры задачи
+                            </h5>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Название задачи</label>
+                                {{ task_form.title }}
+                            </div>
+                            
+                            <div class="row mb-3 g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small text-muted">URL Slug (уникальный идентификатор)</label>
+                                    {{ task_form.slug }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small text-muted">Уровень сложности</label>
+                                    {{ task_form.difficulty }}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">
+                                    <i class="bi bi-tags text-info me-1"></i>Теги и темы (выберите подходящие):
+                                </label>
+                                <div class="d-flex flex-wrap gap-3 p-3 bg-dark rounded border border-secondary-subtle">
+                                    {% for checkbox in task_form.tags %}
+                                        <div class="form-check me-2">
+                                            {{ checkbox.tag }}
+                                            <label class="form-check-label small text-light" for="{{ checkbox.id_for_label }}">
+                                                {{ checkbox.choice_label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold small text-muted mb-0">
+                                        <i class="bi bi-markdown text-info me-1"></i>Условие задачи (Markdown)
+                                    </label>
+                                    <button type="button" id="btn-toggle-preview" class="btn btn-outline-info btn-sm py-0 px-2" style="font-size: 0.8rem;">
+                                        <i class="bi bi-eye me-1"></i>Предпросмотр
+                                    </button>
+                                </div>
+                                {{ task_form.description }}
+                                <div id="desc-preview-box" class="p-3 bg-dark rounded border border-secondary-subtle text-light d-none mt-2" style="min-height: 220px; line-height: 1.6;"></div>
+                            </div>
+                            
+                            <div class="mb-0">
+                                <label class="form-label fw-semibold small text-muted">
+                                    <i class="bi bi-code-slash text-warning me-1"></i>Шаблон кода для студента
+                                </label>
+                                {{ task_form.starter_code }}
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-dark rounded border border-secondary-subtle mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold text-info mb-0">
+                                    <i class="bi bi-2-circle me-1"></i>Проверочные тест-кейсы
+                                </h5>
+                                <button type="button" id="add-test" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-plus-lg me-1"></i>Добавить тест
+                                </button>
+                            </div>
+
+                            {{ testset.management_form }}
+                            <div id="testcases-container">
+                                {% for form in testset %}
+                                    <div class="testcase-row border border-secondary-subtle rounded p-3 mb-3 bg-dark shadow-sm">
+                                        {{ form.id }}
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-muted">Входные данные</label>
+                                                {{ form.input_data }}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold text-muted">Ожидаемый ответ</label>
+                                                {{ form.expected_output }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i>Опубликовать задачу в каталоге
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const addTestBtn = document.getElementById('add-test');
+    const container = document.getElementById('testcases-container');
+    const totalForms = document.querySelector('[name$="-TOTAL_FORMS"]');
+
+    function addTestCaseRow(inputVal = '', outputVal = '') {
+        const count = parseInt(totalForms.value);
+        if (container.children.length > 0) {
+            const firstRow = container.children[0].cloneNode(true);
+            firstRow.innerHTML = firstRow.innerHTML.replaceAll(/-\d+-/g, `-${count}-`);
+            firstRow.querySelectorAll('input').forEach(input => {
+                if (input.name && input.name.endsWith('-input_data')) {
+                    input.value = inputVal;
+                } else if (input.name && input.name.endsWith('-expected_output')) {
+                    input.value = outputVal;
+                } else {
+                    input.value = '';
+                }
+            });
+            container.appendChild(firstRow);
+            totalForms.value = count + 1;
+        }
+    }
+
+    addTestBtn.addEventListener('click', function() {
+        addTestCaseRow();
+    });
+
+    // Обработка ИИ генерации задачи
+    const btnAiGenerate = document.getElementById('btn-ai-generate');
+    const topicInput = document.getElementById('ai-topic-input');
+    const statusMsg = document.getElementById('ai-status-msg');
+
+    btnAiGenerate.addEventListener('click', async function() {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+            statusMsg.className = 'mt-2 small text-warning';
+            statusMsg.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Пожалуйста, укажите тему для генерации задачи.';
+            statusMsg.classList.remove('d-none');
+            topicInput.focus();
+            return;
+        }
+
+        btnAiGenerate.disabled = true;
+        const origBtnText = btnAiGenerate.innerHTML;
+        btnAiGenerate.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status"></span>Генерация...`;
+        statusMsg.className = 'mt-2 small text-info';
+        statusMsg.innerHTML = '<i class="bi bi-robot me-1"></i>Gemini 3.6 Flash генерирует условие, шаблон и тесты...';
+        statusMsg.classList.remove('d-none');
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch("{% url 'api_generate_task' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({ topic: topic })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Ошибка при генерации задачи.');
+            }
+
+            const task = data.task;
+
+            // Заполняем поля формы
+            if (task.title && document.getElementById('id_title')) {
+                document.getElementById('id_title').value = task.title;
+            }
+            if (task.slug && document.getElementById('id_slug')) {
+                document.getElementById('id_slug').value = task.slug;
+            }
+            if (task.difficulty && document.getElementById('id_difficulty')) {
+                document.getElementById('id_difficulty').value = task.difficulty;
+            }
+            if (task.description && document.getElementById('id_description')) {
+                const descEl = document.getElementById('id_description');
+                descEl.value = task.description;
+                autoResize(descEl, 220);
+            }
+            if (task.starter_code && document.getElementById('id_starter_code')) {
+                const starterEl = document.getElementById('id_starter_code');
+                starterEl.value = task.starter_code;
+                autoResize(starterEl, 140);
+            }
+
+            // Выбираем подходящие теги, если они есть
+            if (task.suggested_tags && Array.isArray(task.suggested_tags)) {
+                const tagCheckboxes = document.querySelectorAll('input[type="checkbox"][name="tags"]');
+                tagCheckboxes.forEach(cb => {
+                    const label = cb.closest('.form-check')?.querySelector('label');
+                    if (label) {
+                        const labelText = label.textContent.trim().toLowerCase();
+                        const isMatch = task.suggested_tags.some(st => 
+                            labelText.includes(st.toLowerCase()) || st.toLowerCase().includes(labelText)
+                        );
+                        if (isMatch) {
+                            cb.checked = true;
+                        }
+                    }
+                });
+            }
+
+            // Заполняем тест-кейсы
+            if (task.test_cases && Array.isArray(task.test_cases) && task.test_cases.length > 0) {
+                // Оставляем только первый ряд и очищаем остальные
+                while (container.children.length > 1) {
+                    container.removeChild(container.lastElementChild);
+                }
+                totalForms.value = 1;
+
+                const firstRow = container.children[0];
+                const firstInput = firstRow.querySelector('[name$="-input_data"]');
+                const firstOutput = firstRow.querySelector('[name$="-expected_output"]');
+                if (firstInput) firstInput.value = task.test_cases[0].input_data || '';
+                if (firstOutput) firstOutput.value = task.test_cases[0].expected_output || '';
+
+                // Добавляем остальные тест-кейсы
+                for (let i = 1; i < task.test_cases.length; i++) {
+                    addTestCaseRow(task.test_cases[i].input_data || '', task.test_cases[i].expected_output || '');
+                }
+            }
+
+            statusMsg.className = 'mt-2 small text-success';
+            statusMsg.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Задача успешно сгенерирована! Проверьте поля и нажмите «Опубликовать задачу».';
+
+            // Фокусируемся на названии
+            document.getElementById('id_title')?.focus();
+        } catch (err) {
+            statusMsg.className = 'mt-2 small text-danger';
+            statusMsg.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>Ошибка: ${err.message}`;
+        } finally {
+            btnAiGenerate.disabled = false;
+            btnAiGenerate.innerHTML = origBtnText;
+        }
+    });
+
+    // Функция авто-расширения текстовых полей по высоте контента
+    function autoResize(el, minHeight = 100) {
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = Math.max(minHeight, el.scrollHeight) + 'px';
+    }
+
+    // Автоматическое расширение высоты textarea при вводе темы
+    topicInput.addEventListener('input', function() {
+        autoResize(this, 95);
+    });
+
+    // Ctrl+Enter или Cmd+Enter запускает генерацию (обычный Enter делает новую строку)
+    topicInput.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            btnAiGenerate.click();
+        }
+    });
+
+    // Авто-расширение для описания задачи и шаблона кода
+    const descField = document.getElementById('id_description');
+    if (descField) {
+        autoResize(descField, 220);
+        descField.addEventListener('input', function() { autoResize(this, 220); });
+    }
+
+    const starterField = document.getElementById('id_starter_code');
+    if (starterField) {
+        autoResize(starterField, 140);
+        starterField.addEventListener('input', function() { autoResize(this, 140); });
+    }
+
+    // Функция очистки LaTeX для предпросмотра
+    function cleanLatexMath(text) {
+        if (!text) return '';
+        return text
+            .replace(/\$\s*\\mathcal\{[Oo]\}\((.*?)\)\s*\$/g, 'O($1)')
+            .replace(/\\mathcal\{[Oo]\}\((.*?)\)/g, 'O($1)')
+            .replace(/\$\s*O\((.*?)\)\s*\$/g, 'O($1)')
+            .replace(/\$\s*\\Theta\((.*?)\)\s*\$/g, 'Θ($1)')
+            .replace(/\$\s*\\Omega\((.*?)\)\s*\$/g, 'Ω($1)')
+            .replace(/\$([A-Za-z0-9_+\-*^/ ]+)\$/g, '$1');
+    }
+
+    // Переключение между редактором Markdown и предпросмотром
+    const btnTogglePreview = document.getElementById('btn-toggle-preview');
+    const descPreviewBox = document.getElementById('desc-preview-box');
+    if (btnTogglePreview && descPreviewBox && descField) {
+        btnTogglePreview.addEventListener('click', function() {
+            const isHidden = descPreviewBox.classList.contains('d-none');
+            if (isHidden) {
+                const rawText = descField.value.trim();
+                const text = cleanLatexMath(rawText);
+                const parser = window.marked || window.globalMarked;
+                if (parser && typeof parser.parse === 'function') {
+                    descPreviewBox.innerHTML = parser.parse(text || '*Текст условия задачи отсутствует*');
+                } else {
+                    descPreviewBox.innerHTML = '<div style="white-space: pre-wrap;">' + (text || 'Текст условия задачи отсутствует') + '</div>';
+                }
+                descPreviewBox.classList.remove('d-none');
+                descField.classList.add('d-none');
+                btnTogglePreview.innerHTML = '<i class="bi bi-pencil me-1"></i>Редактировать';
+            } else {
+                descPreviewBox.classList.add('d-none');
+                descField.classList.remove('d-none');
+                btnTogglePreview.innerHTML = '<i class="bi bi-eye me-1"></i>Предпросмотр';
+                autoResize(descField, 220);
+            }
+        });
+    }
+</script>
+{% endblock %}
