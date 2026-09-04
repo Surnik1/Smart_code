@@ -155,6 +155,17 @@
                 </div>
             </div>
 
+            <!-- Блок консольного вывода print() -->
+            <div id="stdout-card" class="card border-0 shadow-sm mt-3 d-none" style="border: 1px solid #233148 !important;">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center bg-dark text-muted small">
+                    <span><i class="bi bi-terminal-split me-2 text-warning"></i>Вывод print() / Консоль</span>
+                    <button type="button" class="btn btn-sm py-0 text-muted" onclick="document.getElementById('stdout-card').classList.add('d-none');">Скрыть</button>
+                </div>
+                <div class="card-body p-2 bg-black rounded-bottom">
+                    <pre id="stdout-content" class="mb-0 text-info font-monospace small" style="max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></pre>
+                </div>
+            </div>
+
             <!-- Блок AI-Помощника (Подсказки и Code Review) -->
             <div id="ai-card" class="card ai-assistant-card mt-3 shadow-sm d-none">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-dark bg-opacity-50 border-bottom border-secondary-subtle">
@@ -191,6 +202,26 @@
 
                     <div id="monaco-container" class="flex-grow-1"></div>
 
+                    <!-- Панель «Свой тест (Custom input)» -->
+                    <div class="card border-0 rounded-0 bg-dark border-top border-secondary-subtle">
+                        <div class="card-header py-1 px-3 d-flex justify-content-between align-items-center bg-dark bg-opacity-75">
+                            <span class="small text-muted"><i class="bi bi-flask me-1 text-info"></i>Запустить свой тест</span>
+                            <button type="button" class="btn btn-sm btn-link text-info p-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#custom-test-collapse">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div id="custom-test-collapse" class="collapse card-body p-2 bg-dark">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-secondary bg-opacity-25 border-secondary text-muted">Входные данные:</span>
+                                <input type="text" id="custom-test-input" class="form-control bg-dark text-light border-secondary" placeholder="например: 5, 10 или 'radar'">
+                                <button type="button" id="btn-run-custom-test" class="btn btn-outline-info fw-semibold">
+                                    <i class="bi bi-play-circle me-1"></i>Проверить ввод
+                                </button>
+                            </div>
+                            <div id="custom-test-result" class="mt-2 small d-none p-2 rounded bg-black border border-secondary font-monospace"></div>
+                        </div>
+                    </div>
+
                     <div class="p-3 bg-dark border-top border-secondary-subtle d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
                             <button type="button" id="btn-ai-hint" class="btn btn-outline-info btn-sm fw-semibold shadow-sm">
@@ -198,6 +229,9 @@
                             </button>
                             <button type="button" id="btn-ai-review" class="btn btn-outline-warning btn-sm fw-semibold shadow-sm {% if not result or not result.passed %}d-none{% endif %}">
                                 <i class="bi bi-rocket-takeoff me-1"></i>AI-Анализ кода
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm fw-semibold shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#aiChatDrawer">
+                                <i class="bi bi-chat-dots-fill me-1"></i>Чат с Ментором
                             </button>
                         </div>
                         <div class="d-flex align-items-center gap-3">
@@ -212,6 +246,36 @@
                 </form>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Выезжающий AI-Чат (Offcanvas) -->
+<div class="offcanvas offcanvas-end bg-dark text-light border-start border-secondary" tabindex="-1" id="aiChatDrawer" aria-labelledby="aiChatDrawerLabel" style="width: 440px;">
+    <div class="offcanvas-header border-bottom border-secondary py-3">
+        <h5 class="offcanvas-title fw-bold text-info" id="aiChatDrawerLabel">
+            <i class="bi bi-robot me-2"></i>AI-Ментор: Чат по задаче
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-3">
+        <div class="alert alert-info bg-opacity-10 border-info border-opacity-25 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>Задайте любой вопрос по задаче или коду. Ментор подскажет направление мысли без прямого спойлера решения!
+        </div>
+        <div id="chat-messages" class="flex-grow-1 overflow-y-auto mb-3 pe-1" style="max-height: calc(100vh - 270px);">
+            <div class="d-flex mb-3">
+                <div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-light small lh-base border border-secondary border-opacity-25" style="max-width: 90%;">
+                    Привет! Я твой AI-ментор по задаче <strong>{{ task.title }}</strong>. Напиши, что вызывает сложность, и мы разберемся вместе!
+                </div>
+            </div>
+        </div>
+        <form id="chat-form" class="mt-auto">
+            <div class="input-group">
+                <input type="text" id="chat-input" class="form-control bg-dark text-light border-secondary" placeholder="Спросить совет ментора..." required>
+                <button type="submit" id="chat-send-btn" class="btn btn-info fw-semibold">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -442,7 +506,30 @@
                 const data = await response.json();
                 resultCard.classList.remove('d-none');
 
+                // Перехват консольного вывода print()
+                const stdoutCard = document.getElementById('stdout-card');
+                const stdoutContent = document.getElementById('stdout-content');
+                if (data.stdout && data.stdout.trim().length > 0) {
+                    stdoutContent.textContent = data.stdout;
+                    stdoutCard.classList.remove('d-none');
+                } else {
+                    stdoutCard.classList.add('d-none');
+                }
+
                 if (data.passed) {
+                    let gamificationHtml = '';
+                    if (data.gamification) {
+                        if (data.gamification.xp_earned > 0) {
+                            gamificationHtml += `<div class="mt-2 text-warning fw-semibold"><i class="bi bi-star-fill me-1"></i>+${data.gamification.xp_earned} XP! Всего: ${data.gamification.total_xp} XP (${data.gamification.level_title})</div>`;
+                        }
+                        if (data.gamification.streak_days > 0) {
+                            gamificationHtml += `<div class="mt-1 text-danger fw-semibold">🔥 Стрик активности: ${data.gamification.streak_days} дн. подряд!</div>`;
+                        }
+                        if (data.gamification.new_achievements && data.gamification.new_achievements.length > 0) {
+                            gamificationHtml += `<div class="mt-2 text-info fw-bold p-2 rounded bg-dark border border-info border-opacity-50">🏆 Достижение: ${data.gamification.new_achievements.join(', ')}!</div>`;
+                        }
+                    }
+
                     resultAlert.className = 'alert alert-success mb-0 border-0';
                     resultMessage.innerHTML = `
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -451,6 +538,7 @@
                                 <i class="bi bi-rocket-takeoff-fill me-1"></i>AI-Разбор решения
                             </button>
                         </div>
+                        ${gamificationHtml}
                     `;
                     btnAiReview.classList.remove('d-none');
                     document.getElementById('quick-review-btn')?.addEventListener('click', runAiReview);
@@ -490,5 +578,126 @@
             submitBtn.innerHTML = originalBtnHtml;
         }
     });
+
+    // Обработчик пользовательского теста (Custom input)
+    const btnRunCustom = document.getElementById('btn-run-custom-test');
+    const customInput = document.getElementById('custom-test-input');
+    const customResult = document.getElementById('custom-test-result');
+    const stdoutCard = document.getElementById('stdout-card');
+    const stdoutContent = document.getElementById('stdout-content');
+
+    if (btnRunCustom && customInput && customResult) {
+        btnRunCustom.addEventListener('click', async function() {
+            if (!editor) return;
+            const code = editor.getValue();
+            const inp = customInput.value.trim();
+            btnRunCustom.disabled = true;
+            btnRunCustom.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Проверка...';
+            customResult.classList.remove('d-none');
+            customResult.textContent = 'Выполнение...';
+
+            try {
+                const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const res = await fetch("{% url 'api_custom_test' task.slug %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrf
+                    },
+                    body: JSON.stringify({ code: code, custom_input: inp })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    customResult.className = 'mt-2 small p-2 rounded bg-black border border-success text-success font-monospace';
+                    customResult.innerHTML = `<div><strong>Результат:</strong> ${data.result}</div><div class="text-muted small">Время: ${data.execution_time} сек</div>`;
+                } else {
+                    customResult.className = 'mt-2 small p-2 rounded bg-black border border-danger text-danger font-monospace';
+                    customResult.textContent = data.error || 'Ошибка выполнения';
+                }
+
+                if (data.stdout && data.stdout.trim().length > 0) {
+                    stdoutContent.textContent = data.stdout;
+                    stdoutCard.classList.remove('d-none');
+                }
+            } catch (e) {
+                customResult.className = 'mt-2 small p-2 rounded bg-black border border-danger text-danger font-monospace';
+                customResult.textContent = 'Ошибка сети при запуске своего теста.';
+            } finally {
+                btnRunCustom.disabled = false;
+                btnRunCustom.innerHTML = '<i class="bi bi-play-circle me-1"></i>Проверить ввод';
+            }
+        });
+    }
+
+    // Интерактивный диалог с AI-ментором (Чат)
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatHistory = [];
+
+    if (chatForm && chatInput && chatMessages) {
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const userMsg = chatInput.value.trim();
+            if (!userMsg) return;
+
+            // Сообщение ученика
+            const userBubble = document.createElement('div');
+            userBubble.className = 'd-flex justify-content-end mb-3';
+            userBubble.innerHTML = `<div class="p-2 rounded-3 bg-primary bg-opacity-50 text-light small lh-base border border-primary border-opacity-50" style="max-width: 90%;">${userMsg.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+            chatMessages.appendChild(userBubble);
+            chatHistory.push({ role: 'user', text: userMsg });
+            chatInput.value = '';
+
+            // Индикатор набора ответа
+            const loadingBubble = document.createElement('div');
+            loadingBubble.className = 'd-flex mb-3';
+            loadingBubble.innerHTML = `<div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Ментор печатает ответ...</div>`;
+            chatMessages.appendChild(loadingBubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            chatSendBtn.disabled = true;
+
+            try {
+                const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const code = editor ? editor.getValue() : '';
+                const res = await fetch("{% url 'api_ai_chat' task.slug %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrf
+                    },
+                    body: JSON.stringify({
+                        message: userMsg,
+                        history: chatHistory,
+                        code: code,
+                        error: lastTestError
+                    })
+                });
+                const data = await res.json();
+                loadingBubble.remove();
+
+                const mentorBubble = document.createElement('div');
+                mentorBubble.className = 'd-flex mb-3';
+                if (data.success) {
+                    mentorBubble.innerHTML = `<div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-light small lh-base border border-secondary border-opacity-25" style="max-width: 90%;">${renderMarkdown(data.reply)}</div>`;
+                    chatHistory.push({ role: 'model', text: data.reply });
+                } else {
+                    mentorBubble.innerHTML = `<div class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger small border border-danger border-opacity-50">${data.error || 'Ошибка получения ответа'}</div>`;
+                }
+                chatMessages.appendChild(mentorBubble);
+            } catch (e) {
+                loadingBubble.remove();
+                const errorBubble = document.createElement('div');
+                errorBubble.className = 'd-flex mb-3';
+                errorBubble.innerHTML = `<div class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger small border border-danger border-opacity-50">Ошибка сети при связи с ментором.</div>`;
+                chatMessages.appendChild(errorBubble);
+            } finally {
+                chatSendBtn.disabled = false;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    }
 </script>
 {% endblock %}

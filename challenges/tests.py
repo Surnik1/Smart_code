@@ -442,3 +442,268 @@ class GeminiAIIntegrationTests(TestCase):
         self.assertIn("O(N)", rendered)
         self.assertNotIn("\\mathcal", rendered)
 
+
+from accounts.models import Profile, Classroom, Achievement, UserAchievement
+from challenges.models import CodeBattle, Assignment
+from challenges.services.runner import execute_custom_test
+from challenges.services.gamification_service import GamificationService
+
+
+class CustomTestRunnerTests(TestCase):
+    """Тестирование запуска пользовательских проверок (Custom input) и вывода stdout"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="tester", password="password123")
+        self.task = Task.objects.create(
+            title="Сложение",
+            slug="addition-test",
+            description="Сложите два числа",
+            starter_code="def solution(a, b):\n    return a + b",
+        )
+
+    def test_execute_custom_test_valid(self):
+        code = "def solution(a, b):\n    return a + b"
+        result = execute_custom_test(code, "3, 4")
+        self.assertTrue(result['success'])
+        self.assertEqual(result['result'], '7')
+
+    def test_execute_custom_test_stdout(self):
+        code = "def solution(x):\n    print('debug 123')\n    return x * 2"
+        result = execute_custom_test(code, "5")
+        self.assertTrue(result['success'])
+        self.assertEqual(result['result'], '10')
+        self.assertIn("debug 123", result['stdout'])
+
+    def test_execute_custom_test_security_error(self):
+        code = "def solution(x):\n    import os\n    return x"
+        result = execute_custom_test(code, "5")
+        self.assertFalse(result['success'])
+        self.assertIn("запрещен", result['error'])
+
+    def test_api_custom_test_endpoint(self):
+        self.client.login(username="tester", password="password123")
+        response = self.client.post(
+            reverse('api_custom_test', kwargs={'slug': self.task.slug}),
+            data='{"code": "def solution(a, b): return a + b", "custom_input": "10, 20"}',
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['result'], '30')
+
+
+class GamificationServiceTests(TestCase):
+    """Тестирование системы геймификации: начисление XP, стрики, ачивки и лидерборд"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="gamer", password="password123")
+        self.task_easy = Task.objects.create(
+            title="Легкая задача",
+            slug="easy-task",
+            difficulty=Task.Difficulty.EASY,
+            starter_code="def solution(): return 1",
+        )
+
+    def test_seed_achievements(self):
+        GamificationService.seed_achievements()
+        self.assertTrue(Achievement.objects.filter(code='first_blood').exists())
+        self.assertTrue(Achievement.objects.filter(code='streak_3').exists())
+
+    def test_on_task_passed_xp_and_streak(self):
+        # Create a submission for the user
+        submission = Submission.objects.create(
+            task=self.task_easy,
+            user=self.user,
+            code="def solution(): return 1",
+            status=Submission.Status.PASSED,
+        )
+        result = GamificationService.on_task_passed(self.user, self.task_easy, submission)
+        self.assertEqual(result['xp_earned'], 50)
+        self.assertEqual(result['streak_days'], 1)
+        self.assertTrue(any('Первая кровь' in a for a in result['new_achievements']))
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, 100)  # 50 task + 50 first_blood
+        self.assertEqual(self.user.profile.level_title, "Junior II")
+
+    def test_repeat_solve_no_double_xp(self):
+        # Выдаем ачивку заранее, чтобы она не добавляла XP повторно
+        GamificationService.award_achievement(self.user, "first_blood")
+        self.user.profile.refresh_from_db()
+        initial_xp = self.user.profile.xp
+
+        sub1 = Submission.objects.create(
+            task=self.task_easy,
+            user=self.user,
+            code="def solution(): return 1",
+            status=Submission.Status.PASSED,
+        )
+        sub2 = Submission.objects.create(
+            task=self.task_easy,
+            user=self.user,
+            code="def solution(): return 1",
+            status=Submission.Status.PASSED,
+        )
+        result = GamificationService.on_task_passed(self.user, self.task_easy, sub2)
+        self.assertEqual(result['xp_earned'], 0)
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, initial_xp)
+
+    def test_leaderboard_view(self):
+        user2 = User.objects.create_user(username="pro_gamer", password="password123")
+        self.user.profile.xp = 100
+        self.user.profile.save()
+        user2.profile.xp = 500
+        user2.profile.save()
+
+        self.client.login(username="gamer", password="password123")
+        response = self.client.get(reverse('leaderboard'))
+        self.assertEqual(response.status_code, 200)
+        leaderboard = list(response.context['leaderboard'])
+        self.assertEqual(leaderboard[0]['profile'].user.username, "pro_gamer")
+        self.assertEqual(leaderboard[1]['profile'].user.username, "gamer")
+
+
+class TeacherAnalyticsTests(TestCase):
+    """Тестирование панели аналитики учителя и экспорта отчетов в CSV"""
+
+    def setUp(self):
+        self.client = Client()
+        self.teacher = User.objects.create_user(username="teacher_test", password="password123")
+        self.teacher.profile.role = Profile.Role.TEACHER
+        self.teacher.profile.save()
+
+        self.student = User.objects.create_user(username="student_test", password="password123")
+        self.student.profile.role = Profile.Role.STUDENT
+        self.student.profile.save()
+
+        self.classroom = Classroom.objects.create(name="10-А класс", teacher=self.teacher)
+        self.classroom.students.add(self.student)
+
+        self.task = Task.objects.create(
+            title="Задание класса",
+            slug="class-task",
+            starter_code="def solution(): pass",
+        )
+        self.assignment = Assignment.objects.create(classroom=self.classroom, task=self.task)
+
+    def test_student_forbidden_analytics(self):
+        self.client.login(username="student_test", password="password123")
+        response = self.client.get(reverse('classroom_analytics', kwargs={'class_id': self.classroom.id}))
+        self.assertIn(response.status_code, [302, 403])
+
+    def test_teacher_analytics_view(self):
+        self.client.login(username="teacher_test", password="password123")
+        response = self.client.get(reverse('classroom_analytics', kwargs={'class_id': self.classroom.id}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "10-А класс")
+        self.assertContains(response, "student_test")
+
+    def test_export_classroom_csv(self):
+        self.client.login(username="teacher_test", password="password123")
+        response = self.client.get(reverse('export_classroom_csv', kwargs={'class_id': self.classroom.id}))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        content = response.content.decode('utf-8-sig')
+        self.assertIn("Ученик", content)
+        self.assertIn("student_test", content)
+
+
+class InteractiveAIChatTests(TestCase):
+    """Тестирование интерактивного диалога с AI-ментором в выдвижном чате"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="chat_user", password="password123")
+        self.task = Task.objects.create(
+            title="Чат задача",
+            slug="chat-task",
+            starter_code="def solution(): pass",
+        )
+
+    @patch('challenges.views.GeminiAIService.chat_with_mentor')
+    def test_api_ai_chat_success(self, mock_mentor):
+        mock_mentor.return_value = "Попробуйте использовать цикл while."
+        self.client.login(username="chat_user", password="password123")
+        response = self.client.post(
+            reverse('api_ai_chat', kwargs={'slug': self.task.slug}),
+            data='{"message": "Как мне решить эту задачу?", "history": []}',
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['reply'], "Попробуйте использовать цикл while.")
+
+    def test_api_ai_chat_empty_message(self):
+        self.client.login(username="chat_user", password="password123")
+        response = self.client.post(
+            reverse('api_ai_chat', kwargs={'slug': self.task.slug}),
+            data='{"message": ""}',
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Сообщение не может быть пустым", response.json()['error'])
+
+
+class CodeBattleTests(TestCase):
+    """Тестирование PvP дуэлей 1 на 1 в реальном времени (Code Battle)"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user1 = User.objects.create_user(username="player1", password="password123")
+        self.user2 = User.objects.create_user(username="player2", password="password123")
+        self.task = Task.objects.create(
+            title="Битва чисел",
+            slug="battle-sum",
+            starter_code="def solution(a, b):\n    return a + b",
+        )
+        TaskTestCase.objects.create(
+            task=self.task,
+            input_data="5, 7",
+            expected_output="12",
+        )
+
+    def test_battle_create_and_join(self):
+        self.client.login(username="player1", password="password123")
+        response = self.client.post(reverse('battle_create'), {'task_id': self.task.id})
+        self.assertEqual(response.status_code, 302)
+        battle = CodeBattle.objects.filter(creator=self.user1).first()
+        self.assertIsNotNone(battle)
+        self.assertEqual(battle.status, CodeBattle.Status.WAITING)
+
+        # Player 2 joins
+        self.client.login(username="player2", password="password123")
+        join_res = self.client.post(reverse('battle_join', kwargs={'battle_id': battle.id}))
+        self.assertEqual(join_res.status_code, 302)
+        battle.refresh_from_db()
+        self.assertEqual(battle.opponent, self.user2)
+        self.assertEqual(battle.status, CodeBattle.Status.IN_PROGRESS)
+
+    def test_api_battle_status_and_submit(self):
+        battle = CodeBattle.objects.create(
+            task=self.task,
+            creator=self.user1,
+            opponent=self.user2,
+            status=CodeBattle.Status.IN_PROGRESS,
+        )
+        self.client.login(username="player1", password="password123")
+        status_res = self.client.get(reverse('api_battle_status', kwargs={'battle_id': battle.id}))
+        self.assertEqual(status_res.status_code, 200)
+        self.assertEqual(status_res.json()['status'], 'in_progress')
+
+        # Player 1 submits winning solution
+        submit_res = self.client.post(
+            reverse('api_battle_submit', kwargs={'battle_id': battle.id}),
+            data='{"code": "def solution(a, b): return a + b"}',
+            content_type="application/json"
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        battle.refresh_from_db()
+        self.assertEqual(battle.status, CodeBattle.Status.FINISHED)
+        self.assertEqual(battle.winner, self.user1)
+        self.assertTrue(battle.creator_passed)
+
+

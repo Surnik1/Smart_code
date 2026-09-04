@@ -1,0 +1,119 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Code Battle — Дуэли 1 на 1 — Smart Code{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Баннер арены -->
+    <div class="card border-0 shadow-lg mb-4 overflow-hidden" style="background: linear-gradient(135deg, rgba(30, 27, 75, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%); border: 1px solid rgba(99, 102, 241, 0.3) !important;">
+        <div class="card-body p-4 p-md-5">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 px-3 py-1 mb-3">
+                        <i class="bi bi-fire me-1"></i>PvP Режим арены
+                    </span>
+                    <h2 class="display-6 fw-bold text-light mb-3">
+                        ⚔️ Code Battle: Дуэли программистов 1 на 1
+                    </h2>
+                    <p class="text-light-emphasis fs-5 mb-4">
+                        Бросьте вызов однокласснику или случайному сопернику! Одинаковая задача, общий таймер и гонка алгоритмов. Тот, кто первым пройдет все проверочные тесты — забирает победу и <strong>+100 XP</strong>!
+                    </p>
+                    <form method="post" action="{% url 'battle_create' %}" class="d-flex flex-wrap gap-2">
+                        {% csrf_token %}
+                        <select name="task_id" class="form-select bg-dark text-light border-secondary" style="max-width: 280px;">
+                            <option value="">🎲 Случайная задача (Любая)</option>
+                            {% for t in tasks %}
+                            <option value="{{ t.id }}">[{{ t.get_difficulty_display }}] {{ t.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-danger fw-bold px-4 shadow">
+                            <i class="bi bi-swords me-2"></i>Создать дуэль
+                        </button>
+                    </form>
+                </div>
+                <div class="col-lg-4 text-center d-none d-lg-block">
+                    <div style="font-size: 6rem; opacity: 0.85;">⚔️</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Мои активные битвы -->
+    {% if active_battles %}
+    <div class="mb-5">
+        <h4 class="fw-bold text-light mb-3"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Ваши текущие битвы</h4>
+        <div class="row g-3">
+            {% for b in active_battles %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-warning bg-dark shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-warning text-dark fw-bold">ИДЕТ БОЙ!</span>
+                            <small class="text-muted">{{ b.started_at|timesince }} назад</small>
+                        </div>
+                        <h5 class="card-title text-light fw-bold">{{ b.task.title }}</h5>
+                        <p class="small text-muted mb-3">
+                            <i class="bi bi-person-fill me-1"></i>{{ b.creator.username }} 
+                            <strong class="text-danger mx-1">VS</strong> 
+                            <i class="bi bi-person-fill me-1"></i>{{ b.opponent.username }}
+                        </p>
+                        <a href="{% url 'battle_arena' b.id %}" class="btn btn-warning btn-sm w-100 fw-bold">
+                            <i class="bi bi-play-fill me-1"></i>Вернуться на арену
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Доска ожидания (Открытые дуэли) -->
+    <div>
+        <h4 class="fw-bold text-light mb-3">
+            <i class="bi bi-hourglass-split text-info me-2"></i>Открытые дуэли (ждут соперника)
+        </h4>
+        <div class="row g-3">
+            {% for b in waiting_battles %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 bg-dark shadow-sm h-100" style="border: 1px solid #233148 !important;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                {{ b.task.get_difficulty_display }}
+                            </span>
+                            <small class="text-muted">{{ b.created_at|timesince }} назад</small>
+                        </div>
+                        <h5 class="card-title text-light fw-bold mb-1">{{ b.task.title }}</h5>
+                        <p class="small text-muted mb-4">
+                            Создатель: <strong class="text-light">{{ b.creator.username }}</strong>
+                        </p>
+                        <div class="mt-auto">
+                            {% if request.user == b.creator %}
+                                <a href="{% url 'battle_arena' b.id %}" class="btn btn-outline-info btn-sm w-100 fw-semibold">
+                                    <i class="bi bi-eye me-1"></i>В комнату ожидания
+                                </a>
+                            {% else %}
+                                <a href="{% url 'battle_join' b.id %}" class="btn btn-danger btn-sm w-100 fw-bold shadow-sm">
+                                    <i class="bi bi-swords me-1"></i>Принять бой!
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="card border-0 text-center py-5" style="border: 1px dashed #2d3e5b !important;">
+                    <div class="card-body">
+                        <i class="bi bi-shield-slash display-5 text-muted mb-3 d-block opacity-25"></i>
+                        <h5 class="text-light fw-bold">Сейчас нет открытых дуэлей</h5>
+                        <p class="text-muted small mb-3">Создайте дуэль первым и пригласите одноклассника сразиться в скорости решения!</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

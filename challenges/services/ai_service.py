@@ -270,3 +270,68 @@ class GeminiAIService:
         except Exception as e:
             logger.error(f"Ошибка Code Review Gemini: {e}")
             raise RuntimeError(f"Ошибка проведения анализа кода: {str(e)}")
+
+    @classmethod
+    def chat_with_mentor(
+        cls,
+        task_title: str,
+        task_description: str,
+        user_code: str,
+        test_error: str,
+        user_message: str,
+        history: List[Dict[str, str]] = None
+    ) -> str:
+        """
+        Интерактивный диалог с AI-ментором.
+        Ученик задает конкретный вопрос по своей ошибке/коду.
+        Правило: направлять, но НЕ давать готовый код решения целиком!
+        """
+        client = cls._get_client()
+
+        formatted_history = ""
+        if history:
+            formatted_history = "\n".join(
+                f"{'Ученик' if msg.get('role') == 'user' else 'AI-Ментор'}: {msg.get('text', '')}"
+                for msg in history[-6:]
+            )
+
+        prompt = f"""
+Ты — дружелюбный Senior Python разработчик и личный AI-ментор ученика на платформе Smart Code.
+Ученик сейчас решает задачу: "{task_title}".
+
+Условие задачи:
+{task_description}
+
+Текущий код ученика:
+```python
+{user_code if user_code else "# Код пока не написан"}
+```
+
+Последняя ошибка или результат тестов:
+{test_error if test_error else "Тесты пока не запускались или неизвестны."}
+
+История предыдущего диалога:
+{formatted_history if formatted_history else "Это начало диалога."}
+
+Новый вопрос ученика:
+\"{user_message}\"
+
+ПРАВИЛА ОТВЕТА:
+1. Отвечай кратко, емко, по делу и дружелюбно на русском языке (2-4 абзаца).
+2. СТРОЖАЙШИЙ ЗАПРЕТ: НЕ пиши готовый код решения целиком! Направляй мысль ученика, объясняй концепции, логику, типы данных или стандартные функции.
+3. НЕ используй формулы LaTeX (никаких $ и \\mathcal). Big-O пиши как O(1), O(N).
+4. Оформляй в Markdown: ключевые термины **жирным**, короткие имена `кодом`.
+"""
+
+        try:
+            result = cls._generate_with_fallback(
+                client=client,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.6,
+                ),
+            )
+            return clean_ai_markdown(result)
+        except Exception as e:
+            logger.error(f"Ошибка в AI-чате Gemini: {e}")
+            raise RuntimeError(f"Ошибка чата с ИИ: {str(e)}")

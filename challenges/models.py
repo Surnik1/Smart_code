@@ -107,6 +107,7 @@ class Assignment(models.Model):
     """Модель назначения задачи конкретному классу (ДЗ / Классная работа)"""
     classroom = models.ForeignKey('accounts.Classroom', on_delete=models.CASCADE, related_name='assignments', verbose_name="Класс")
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='assignments', verbose_name="Задача")
+    due_date = models.DateTimeField(null=True, blank=True, verbose_name="Дедлайн сдачи")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата назначения")
 
     def __str__(self):
@@ -115,3 +116,34 @@ class Assignment(models.Model):
     class Meta:
         verbose_name = "Задание класса"
         verbose_name_plural = "Задания классов"
+
+
+class CodeBattle(models.Model):
+    """Модель дуэли 1 на 1 в реальном времени (Code Battle)"""
+    class Status(models.TextChoices):
+        WAITING = 'waiting', 'Ожидание соперника'
+        IN_PROGRESS = 'in_progress', 'Идет битва'
+        FINISHED = 'finished', 'Завершена'
+        CANCELLED = 'cancelled', 'Отменена'
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='battles', verbose_name="Задача")
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_battles', verbose_name="Создатель")
+    opponent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='joined_battles', verbose_name="Соперник")
+    winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='won_battles', verbose_name="Победитель")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.WAITING, verbose_name="Статус")
+    creator_code = models.TextField(blank=True, default="", verbose_name="Код создателя")
+    opponent_code = models.TextField(blank=True, default="", verbose_name="Код соперника")
+    creator_passed = models.BooleanField(default=False, verbose_name="Создатель прошел тесты")
+    opponent_passed = models.BooleanField(default=False, verbose_name="Соперник прошел тесты")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name="Время старта")
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="Время завершения")
+
+    def __str__(self):
+        opp_name = self.opponent.username if self.opponent else 'Ожидание...'
+        return f"Дуэль #{self.id}: {self.creator.username} vs {opp_name} [{self.get_status_display()}]"
+
+    class Meta:
+        verbose_name = "Code Battle Дуэль"
+        verbose_name_plural = "Code Battle Дуэли"
+        ordering = ['-created_at']

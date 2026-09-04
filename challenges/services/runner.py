@@ -122,6 +122,30 @@ def parse_test_inputs(input_str: str) -> List[Any]:
             raise ValueError(f"Не удалось безопасно распознать входные данные: '{input_str}' ({err})")
 
 
+class StdoutCollector:
+    """
+    Изолированный потокобезопасный сборщик вывода print() с защитой от переполнения памяти.
+    """
+    def __init__(self, max_chars: int = 5000):
+        self.max_chars = max_chars
+        self.chunks: List[str] = []
+        self.current_length = 0
+
+    def print(self, *args, sep=' ', end='\n'):
+        text = sep.join(str(a) for a in args) + end
+        if self.current_length < self.max_chars:
+            remaining = self.max_chars - self.current_length
+            if len(text) > remaining:
+                self.chunks.append(text[:remaining] + "\n... [вывод обрезан из-за превышения лимита 5000 символов]")
+                self.current_length = self.max_chars
+            else:
+                self.chunks.append(text)
+                self.current_length += len(text)
+
+    def get_output(self) -> str:
+        return "".join(self.chunks).strip()
+
+
 class CodeRunnerService:
     """
     Сервис для безопасной компиляции, валидации и выполнения кода задачи.
@@ -173,7 +197,10 @@ class CodeRunnerService:
 
         # 2. Изолированная компиляция и инициализация
         local_scope: Dict[str, Any] = {}
-        safe_globals = {'__builtins__': SAFE_BUILTINS.copy()}
+        collector = StdoutCollector()
+        safe_builtins = SAFE_BUILTINS.copy()
+        safe_builtins['print'] = collector.print
+        safe_globals = {'__builtins__': safe_builtins}
 
         try:
             compiled_code = compile(code, '<user_code>', 'exec')
@@ -184,6 +211,7 @@ class CodeRunnerService:
                 'status': 'error',
                 'message': f"Ошибка инициализации кода: {type(e).__name__}: {str(e)}",
                 'execution_time': 0.0,
+                'stdout': collector.get_output(),
             }
 
         if 'solution' not in local_scope or not callable(local_scope['solution']):
@@ -192,6 +220,7 @@ class CodeRunnerService:
                 'status': 'error',
                 'message': "Ошибка: Функция 'solution' не найдена или не является вызываемой.",
                 'execution_time': 0.0,
+                'stdout': collector.get_output(),
             }
 
         solution_func = local_scope['solution']
@@ -207,6 +236,7 @@ class CodeRunnerService:
                     'status': 'error',
                     'message': f"Ошибка в формате тест-кейса #{index}: {str(e)}",
                     'execution_time': total_time,
+                    'stdout': collector.get_output(),
                 }
 
             start_t = time.perf_counter()
@@ -228,6 +258,7 @@ class CodeRunnerService:
                         'status': 'failed',
                         'message': f"{test_label} не пройден! Вход: {input_display} | Ожидалось: {expected_display} | Получено: {actual_str}",
                         'execution_time': round(total_time, 4),
+                        'stdout': collector.get_output(),
                     }
 
             except FunctionTimedOut:
@@ -236,6 +267,7 @@ class CodeRunnerService:
                     'status': 'timeout',
                     'message': f"⏱ Превышено время ожидания ({timeout_seconds} сек) на тесте #{index}! Проверьте код на бесконечные циклы.",
                     'execution_time': round(timeout_seconds, 4),
+                    'stdout': collector.get_output(),
                 }
             except Exception as e:
                 return {
@@ -243,6 +275,7 @@ class CodeRunnerService:
                     'status': 'error',
                     'message': f"Ошибка выполнения (Runtime Error) на тесте #{index}: {type(e).__name__}: {str(e)}",
                     'execution_time': round(total_time, 4),
+                    'stdout': collector.get_output(),
                 }
 
         return {
@@ -250,5 +283,99 @@ class CodeRunnerService:
             'status': 'passed',
             'message': f"🎉 Все тесты ({test_cases.count()} шт.) успешно пройдены!",
             'execution_time': round(total_time, 4),
+            'stdout': collector.get_output(),
         }
+
+    @classmethod
+    def execute_custom_test(
+        cls,
+        code: str,
+        custom_input: str,
+        timeout_seconds: float = 5.0
+    ) -> Dict[str, Any]:
+        """
+        Запускает функцию solution на пользовательских входных данных.
+        Возвращает результат вызова, вывод print() и время работы.
+        """
+        try:
+            cls.validate_code(code)
+        except (SecurityError, SyntaxError) as e:
+            return {
+                'success': False,
+                'error': f"⚠️ {str(e)}",
+                'stdout': '',
+                'result': None,
+                'execution_time': 0.0,
+            }
+
+        collector = StdoutCollector()
+        safe_builtins = SAFE_BUILTINS.copy()
+        safe_builtins['print'] = collector.print
+        safe_globals = {'__builtins__': safe_builtins}
+        local_scope: Dict[str, Any] = {}
+
+        try:
+            compiled_code = compile(code, '<user_code>', 'exec')
+            exec(compiled_code, safe_globals, local_scope)
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Ошибка инициализации кода: {type(e).__name__}: {str(e)}",
+                'stdout': collector.get_output(),
+                'result': None,
+                'execution_time': 0.0,
+            }
+
+        if 'solution' not in local_scope or not callable(local_scope['solution']):
+            return {
+                'success': False,
+                'error': "Функция 'solution' не найдена или не является вызываемой.",
+                'stdout': collector.get_output(),
+                'result': None,
+                'execution_time': 0.0,
+            }
+
+        try:
+            args = parse_test_inputs(custom_input)
+        except ValueError as e:
+            return {
+                'success': False,
+                'error': f"Ошибка в формате входных данных: {str(e)}",
+                'stdout': collector.get_output(),
+                'result': None,
+                'execution_time': 0.0,
+            }
+
+        solution_func = local_scope['solution']
+        start_t = time.perf_counter()
+        try:
+            output = func_timeout(timeout_seconds, solution_func, args=args)
+            elapsed = round(time.perf_counter() - start_t, 4)
+            return {
+                'success': True,
+                'result': repr(output),
+                'stdout': collector.get_output(),
+                'execution_time': elapsed,
+                'error': None,
+            }
+        except FunctionTimedOut:
+            return {
+                'success': False,
+                'error': f"⏱ Превышено время ожидания ({timeout_seconds} сек)!",
+                'stdout': collector.get_output(),
+                'result': None,
+                'execution_time': timeout_seconds,
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Ошибка выполнения: {type(e).__name__}: {str(e)}",
+                'stdout': collector.get_output(),
+                'result': None,
+                'execution_time': round(time.perf_counter() - start_t, 4),
+            }
+
+
+# Module-level convenience alias
+execute_custom_test = CodeRunnerService.execute_custom_test
 

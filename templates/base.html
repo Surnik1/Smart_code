@@ -216,6 +216,16 @@
                             <i class="bi bi-code-square me-1 text-primary"></i>Каталог задач
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3" href="{% url 'leaderboard' %}">
+                            <i class="bi bi-trophy-fill me-1 text-warning"></i>Зал славы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3" href="{% url 'battle_list' %}">
+                            <i class="bi bi-swords me-1 text-danger"></i>Code Battle
+                        </a>
+                    </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link px-3" href="{% url 'student_assignments' %}">
@@ -240,6 +250,19 @@
                 <!-- Блок пользователя справа -->
                 <div class="d-flex align-items-center gap-2">
                     {% if user.is_authenticated %}
+                        <!-- Геймификация: Бейджи в навбаре -->
+                        {% if user.profile.streak_days > 0 %}
+                            <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-50 py-2 px-2 d-none d-sm-inline-flex align-items-center" title="Стрик активности: {{ user.profile.streak_days }} дн.">
+                                🔥 {{ user.profile.streak_days }}
+                            </span>
+                        {% endif %}
+                        <span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-50 py-2 px-2 d-none d-md-inline-flex align-items-center" title="Накопленный опыт">
+                            <i class="bi bi-star-fill me-1"></i>{{ user.profile.xp }} XP
+                        </span>
+                        <span class="badge bg-info bg-opacity-15 text-info border border-info border-opacity-50 py-2 px-2 d-none d-lg-inline-flex" title="Текущий уровень">
+                            {{ user.profile.level_title }}
+                        </span>
+
                         <!-- Выпадающее меню профиля (Dropdown) -->
                         <div class="dropdown">
                             <button class="btn btn-outline-dark border-secondary-subtle d-flex align-items-center gap-2 py-1 px-3 rounded-pill dropdown-toggle" 
@@ -250,30 +273,46 @@
                                 <div class="text-start d-none d-sm-block">
                                     <div class="fw-bold lh-1 text-light" style="font-size: 0.88rem;">{{ user.username }}</div>
                                     <small class="text-muted" style="font-size: 0.72rem;">
-                                        {% if user.profile.role == 'teacher' %}Учитель{% else %}Ученик{% endif %}
+                                        {% if user.profile.role == 'teacher' %}Учитель{% else %}{{ user.profile.level_title }}{% endif %}
                                     </small>
                                 </div>
                             </button>
 
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow" aria-labelledby="userMenuDropdown" style="min-width: 230px;">
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow" aria-labelledby="userMenuDropdown" style="min-width: 240px;">
                                 <li class="px-3 py-2 border-bottom border-secondary-subtle">
                                     <div class="fw-bold text-white">{{ user.username }}</div>
-                                    <div class="small text-muted">
+                                    <div class="small text-muted d-flex justify-content-between align-items-center mt-1">
                                         {% if user.profile.role == 'teacher' %}
                                             <span class="badge badge-teacher">Преподаватель</span>
                                         {% else %}
-                                            <span class="badge badge-student">Ученик</span>
+                                            <span class="badge badge-student">{{ user.profile.level_title }}</span>
+                                            <span class="text-warning fw-semibold">{{ user.profile.xp }} XP</span>
                                         {% endif %}
                                     </div>
+                                    {% if user.profile.role != 'teacher' %}
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ user.profile.progress_percent }}%;"></div>
+                                    </div>
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'leaderboard' %}">
+                                        <i class="bi bi-trophy me-2 text-warning"></i>Зал славы (Рейтинг)
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'battle_list' %}">
+                                        <i class="bi bi-swords me-2 text-danger"></i>Code Battle (Дуэли)
+                                    </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{% url 'student_assignments' %}">
-                                        <i class="bi bi-journal-check me-2 text-warning"></i>Задания классов (ДЗ)
+                                        <i class="bi bi-journal-check me-2 text-info"></i>Задания классов (ДЗ)
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="{% url 'classroom_list' %}">
-                                        <i class="bi bi-mortarboard me-2 text-info"></i>Управление классами
+                                        <i class="bi bi-mortarboard me-2 text-primary"></i>Мои классы
                                     </a>
                                 </li>
                                 <li>
