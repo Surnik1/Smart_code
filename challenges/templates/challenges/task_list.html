@@ -113,9 +113,6 @@
                             </a>
                         {% endfor %}
                     </div>
-                    <small class="text-muted">
-                        Добавлено: {{ task.created_at|date:"d.m.Y" }}
-                    </small>
                 </div>
                 <div>
                     <a href="{% url 'task_detail' task.slug %}" class="btn btn-outline-primary btn-sm px-4 fw-semibold">
