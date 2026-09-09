@@ -7,3 +7,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         run_seeder(stdout=self.stdout, style=self.style)
+
