@@ -68,7 +68,8 @@ SAFE_BUILTINS: Dict[str, Any] = {
 FORBIDDEN_CALL_NAMES = {
     '__import__', 'eval', 'exec', 'compile', 'open', 'globals', 'locals',
     'getattr', 'setattr', 'delattr', 'input', 'breakpoint', 'help',
-    'exit', 'quit'
+    'exit', 'quit', 'type', 'vars', 'dir', 'super', 'object',
+    'memoryview', 'classmethod', 'staticmethod',
 }
 
 
@@ -249,9 +250,9 @@ class CodeRunnerService:
                 expected_str = str(test.expected_output).strip()
 
                 if actual_str != expected_str:
-                    test_label = f"Тест #{index}" if not test.is_hidden else f"Скрытый тест #{index}"
-                    input_display = test.input_data if not test.is_hidden else "[Скрыто]"
-                    expected_display = test.expected_output if not test.is_hidden else "[Скрыто]"
+                    test_label = f"Тест #{index}"
+                    input_display = test.input_data
+                    expected_display = test.expected_output
                     
                     return {
                         'passed': False,

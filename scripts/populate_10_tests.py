@@ -1511,8 +1511,7 @@ def run():
                     raw_ans = solver(*val)
                     
                 expected_str = str(raw_ans)
-                # First 3 tests are open, rest are hidden
-                is_hidden = idx >= 3
+                is_hidden = False
                 
                 TestCase.objects.create(
                     task=task,

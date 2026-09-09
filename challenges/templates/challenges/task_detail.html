@@ -172,14 +172,14 @@
             <div id="ai-card" class="card ai-assistant-card mt-3 shadow-sm d-none">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center bg-dark bg-opacity-50 border-bottom border-secondary-subtle">
                     <span class="fw-semibold text-info small" id="ai-card-title">
-                        <i class="bi bi-robot me-2"></i>AI-Ментор Smart Code
+                        <i class="bi bi-robot me-2"></i>ИИ Ментор
                     </span>
                     <button type="button" class="btn-close btn-close-white btn-sm" id="btn-close-ai" aria-label="Закрыть"></button>
                 </div>
                 <div class="card-body p-3">
                     <div id="ai-loading" class="text-center py-4 d-none">
                         <div class="spinner-border spinner-border-sm text-info mb-2" role="status"></div>
-                        <div class="small text-muted" id="ai-loading-text">ИИ обдумывает подсказку...</div>
+                        <div class="small text-muted" id="ai-loading-text">ИИ Ментор думает...</div>
                     </div>
                     <div id="ai-content" class="text-light small lh-base"></div>
                 </div>
@@ -227,13 +227,13 @@
                     <div class="py-2 px-3 bg-dark border-top border-secondary-subtle d-flex justify-content-between align-items-center flex-wrap gap-2" style="flex-shrink: 0; z-index: 10;">
                         <div class="d-flex align-items-center gap-2">
                             <button type="button" id="btn-ai-hint" class="btn btn-outline-info btn-sm fw-semibold shadow-sm">
-                                <i class="bi bi-lightbulb me-1"></i>AI-Подсказка
+                                <i class="bi bi-robot me-1"></i>ИИ Ментор
                             </button>
                             <button type="button" id="btn-ai-review" class="btn btn-outline-warning btn-sm fw-semibold shadow-sm {% if not result or not result.passed %}d-none{% endif %}">
-                                <i class="bi bi-rocket-takeoff me-1"></i>AI-Анализ кода
+                                <i class="bi bi-rocket-takeoff me-1"></i>Разбор решения
                             </button>
                             <button type="button" class="btn btn-outline-primary btn-sm fw-semibold shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#aiChatDrawer">
-                                <i class="bi bi-chat-dots-fill me-1"></i>Чат с Ментором
+                                <i class="bi bi-chat-dots-fill me-1"></i>Чат с ИИ Ментором
                             </button>
                         </div>
                         <div class="d-flex align-items-center gap-3">
@@ -255,24 +255,24 @@
 <div class="offcanvas offcanvas-end bg-dark text-light border-start border-secondary" tabindex="-1" id="aiChatDrawer" aria-labelledby="aiChatDrawerLabel" style="width: 440px;">
     <div class="offcanvas-header border-bottom border-secondary py-3">
         <h5 class="offcanvas-title fw-bold text-info" id="aiChatDrawerLabel">
-            <i class="bi bi-robot me-2"></i>AI-Ментор: Чат по задаче
+            <i class="bi bi-robot me-2"></i>ИИ Ментор
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
     </div>
     <div class="offcanvas-body d-flex flex-column p-3">
         <div class="alert alert-info bg-opacity-10 border-info border-opacity-25 small mb-3">
-            <i class="bi bi-info-circle me-1"></i>Задайте любой вопрос по задаче или коду. Ментор подскажет направление мысли без прямого спойлера решения!
+            <i class="bi bi-info-circle me-1"></i>Задайте любой вопрос по задаче или коду. ИИ Ментор подскажет направление мысли без прямого спойлера решения!
         </div>
         <div id="chat-messages" class="flex-grow-1 overflow-y-auto mb-3 pe-1" style="max-height: calc(100vh - 270px);">
             <div class="d-flex mb-3">
                 <div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-light small lh-base border border-secondary border-opacity-25" style="max-width: 90%;">
-                    Привет! Я твой AI-ментор по задаче <strong>{{ task.title }}</strong>. Напиши, что вызывает сложность, и мы разберемся вместе!
+                    Привет! Я твой ИИ Ментор по задаче <strong>{{ task.title }}</strong>. Напиши, что вызывает сложность, и мы разберемся вместе!
                 </div>
             </div>
         </div>
         <form id="chat-form" class="mt-auto">
             <div class="input-group">
-                <input type="text" id="chat-input" class="form-control bg-dark text-light border-secondary" placeholder="Спросить совет ментора..." required>
+                <input type="text" id="chat-input" class="form-control bg-dark text-light border-secondary" placeholder="Спросить совет ИИ Ментора..." required>
                 <button type="submit" id="chat-send-btn" class="btn btn-info fw-semibold">
                     <i class="bi bi-send-fill"></i>
                 </button>
@@ -384,14 +384,14 @@
         if (!editor) return;
         const code = editor.getValue().trim();
         if (!code) {
-            alert('Пожалуйста, напишите хотя бы часть решения, чтобы ИИ-Ментор мог дать подсказку!');
+            alert('Пожалуйста, напишите хотя бы часть решения, чтобы ИИ Ментор мог дать подсказку!');
             return;
         }
 
         aiCard.classList.remove('d-none');
-        aiCardTitle.innerHTML = '<i class="bi bi-lightbulb-fill text-warning me-2"></i>AI-Ментор: Подсказка по логике';
+        aiCardTitle.innerHTML = '<i class="bi bi-robot text-info me-2"></i>ИИ Ментор';
         aiLoading.classList.remove('d-none');
-        aiLoadingText.textContent = 'ИИ обдумывает наводящую подсказку...';
+        aiLoadingText.textContent = 'ИИ Ментор думает...';
         aiContent.innerHTML = '';
         btnAiHint.disabled = true;
 
@@ -413,7 +413,7 @@
 
             const data = await res.json();
             if (!res.ok || !data.success) {
-                throw new Error(data.error || 'Не удалось получить подсказку от ИИ.');
+                throw new Error(data.error || 'Не удалось получить подсказку от ИИ Ментора.');
             }
 
             aiContent.innerHTML = renderMarkdown(data.hint);
@@ -434,9 +434,9 @@
         }
 
         aiCard.classList.remove('d-none');
-        aiCardTitle.innerHTML = '<i class="bi bi-rocket-takeoff-fill text-warning me-2"></i>AI Code Review: Big-O и Рефакторинг';
+        aiCardTitle.innerHTML = '<i class="bi bi-robot text-info me-2"></i>ИИ Ментор';
         aiLoading.classList.remove('d-none');
-        aiLoadingText.textContent = 'Senior Tech Lead проводит детальный аудит решения...';
+        aiLoadingText.textContent = 'ИИ Ментор думает...';
         aiContent.innerHTML = '';
         btnAiReview.disabled = true;
 
@@ -537,7 +537,7 @@
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div><strong>🎉 Успех!</strong> ${data.message}</div>
                             <button type="button" id="quick-review-btn" class="btn btn-sm btn-warning fw-semibold shadow-sm">
-                                <i class="bi bi-rocket-takeoff-fill me-1"></i>AI-Разбор решения
+                                <i class="bi bi-robot me-1"></i>ИИ Ментор
                             </button>
                         </div>
                         ${gamificationHtml}
@@ -551,7 +551,7 @@
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div><strong>⚠️ Ошибка:</strong> ${data.message}</div>
                             <button type="button" id="quick-hint-btn" class="btn btn-sm btn-outline-light fw-semibold">
-                                <i class="bi bi-lightbulb-fill text-warning me-1"></i>Спросить совет ИИ
+                                <i class="bi bi-robot text-info me-1"></i>ИИ Ментор
                             </button>
                         </div>
                     `;
@@ -655,7 +655,7 @@
             // Индикатор набора ответа
             const loadingBubble = document.createElement('div');
             loadingBubble.className = 'd-flex mb-3';
-            loadingBubble.innerHTML = `<div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Ментор печатает ответ...</div>`;
+            loadingBubble.innerHTML = `<div class="p-2 rounded-3 bg-secondary bg-opacity-25 text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>ИИ Ментор печатает ответ...</div>`;
             chatMessages.appendChild(loadingBubble);
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -693,7 +693,7 @@
                 loadingBubble.remove();
                 const errorBubble = document.createElement('div');
                 errorBubble.className = 'd-flex mb-3';
-                errorBubble.innerHTML = `<div class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger small border border-danger border-opacity-50">Ошибка сети при связи с ментором.</div>`;
+                errorBubble.innerHTML = `<div class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger small border border-danger border-opacity-50">Ошибка сети при связи с ИИ Ментором.</div>`;
                 chatMessages.appendChild(errorBubble);
             } finally {
                 chatSendBtn.disabled = false;
