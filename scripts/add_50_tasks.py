@@ -94,7 +94,7 @@ tasks_data = [
     {
         "title": "Best Time to Buy and Sell Stock (LeetCode #121)",
         "slug": "leetcode-best-time-to-buy-and-sell-stock",
-        "description": "Дан массив `prices`, где `prices[i]` — цена акции в $i$-й день. Найдите максимальную прибыль от одной покупки и последующей продажи. Если прибыль получить нельзя, верните 0.",
+        "description": "Дан массив `prices`, где `prices[i]` — цена акции в i-й день. Найдите максимальную прибыль от одной покупки и последующей продажи. Если прибыль получить нельзя, верните 0.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def max_profit(prices: list) -> int:\n    pass\n",
@@ -173,7 +173,7 @@ tasks_data = [
     {
         "title": "Power of Two (LeetCode #231)",
         "slug": "leetcode-power-of-two",
-        "description": "Определите, является ли целое число `n` степенью двойки ($n = 2^x$).",
+        "description": "Определите, является ли целое число `n` степенью двойки (n = 2^x).",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def is_power_of_two(n: int) -> bool:\n    pass\n",
@@ -189,7 +189,7 @@ tasks_data = [
     {
         "title": "Power of Three (LeetCode #326)",
         "slug": "leetcode-power-of-three",
-        "description": "Определите, является ли целое число `n` степенью тройки ($n = 3^x$).",
+        "description": "Определите, является ли целое число `n` степенью тройки (n = 3^x).",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def is_power_of_three(n: int) -> bool:\n    pass\n",
@@ -268,7 +268,7 @@ tasks_data = [
     {
         "title": "Power of Four (LeetCode #342)",
         "slug": "leetcode-power-of-four",
-        "description": "Определите, является ли целое число `n` степенью четверки ($n = 4^x$).",
+        "description": "Определите, является ли целое число `n` степенью четверки (n = 4^x).",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def is_power_of_four(n: int) -> bool:\n    pass\n",
@@ -405,7 +405,7 @@ tasks_data = [
     {
         "title": "Arranging Coins (LeetCode #441)",
         "slug": "leetcode-arranging-coins",
-        "description": "У вас есть `n` монет, и вы строите лестницу, где на $k$-й ступени должно быть ровно $k$ монет. Верните количество полностью заполненных рядов.",
+        "description": "У вас есть `n` монет, и вы строите лестницу, где на k-й ступени должно быть ровно k монет. Верните количество полностью заполненных рядов.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def arrange_coins(n: int) -> int:\n    pass\n",
@@ -421,7 +421,7 @@ tasks_data = [
     {
         "title": "Find All Numbers Disappeared in an Array (LeetCode #448)",
         "slug": "leetcode-find-all-numbers-disappeared-in-an-array",
-        "description": "Дан массив `nums` из $n$ чисел, где каждое число находится в диапазоне $[1, n]$. Верните отсортированный список всех чисел из диапазона $[1, n]$, которых нет в `nums`.",
+        "description": "Дан массив `nums` из n чисел, где каждое число находится в диапазоне [1, n]. Верните отсортированный список всех чисел из диапазона [1, n], которых нет в `nums`.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def find_disappeared_numbers(nums: list) -> list:\n    pass\n",
@@ -436,7 +436,7 @@ tasks_data = [
     {
         "title": "Assign Cookies (LeetCode #455)",
         "slug": "leetcode-assign-cookies",
-        "description": "Каждому ребенку $i$ требуется печенье размером не менее $g[i]$. У вас есть печенья с размерами $s$. Каждому ребенку можно дать максимум одно печенье. Максимизируйте количество довольных детей.",
+        "description": "Каждому ребенку i требуется печенье размером не менее g[i]. У вас есть печенья с размерами s. Каждому ребенку можно дать максимум одно печенье. Максимизируйте количество довольных детей.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def find_content_children(g: list, s: list) -> int:\n    pass\n",
@@ -481,7 +481,7 @@ tasks_data = [
     {
         "title": "Island Perimeter (LeetCode #463)",
         "slug": "leetcode-island-perimeter",
-        "description": "Дана сетка `grid` размера $row \\times col$, где 1 представляет сушу, а 0 — воду. Остров ровно один и не имеет озер. Вычислите его периметр.",
+        "description": "Дана сетка `grid` размера row \x col, где 1 представляет сушу, а 0 — воду. Остров ровно один и не имеет озер. Вычислите его периметр.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def island_perimeter(grid: list) -> int:\n    pass\n",
@@ -572,7 +572,7 @@ tasks_data = [
     {
         "title": "Fibonacci Number (LeetCode #509)",
         "slug": "leetcode-fibonacci-number",
-        "description": "Вычислите $n$-е число Фибоначчи: $F(0) = 0, F(1) = 1, F(n) = F(n - 1) + F(n - 2)$.",
+        "description": "Вычислите n-е число Фибоначчи: F(0) = 0, F(1) = 1, F(n) = F(n - 1) + F(n - 2).",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def fib(n: int) -> int:\n    pass\n",
@@ -619,7 +619,7 @@ tasks_data = [
     {
         "title": "Array Partition (LeetCode #561)",
         "slug": "leetcode-array-partition",
-        "description": "Дан целочисленный массив `nums` из $2n$ элементов. Сгруппируйте эти элементы в пары $(a_i, b_i)$ так, чтобы сумма $\\min(a_i, b_i)$ была максимально возможной. Верните эту сумму.",
+        "description": "Дан целочисленный массив `nums` из 2n элементов. Сгруппируйте эти элементы в пары (a_i, b_i) так, чтобы сумма \min(a_i, b_i) была максимально возможной. Верните эту сумму.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def array_pair_sum(nums: list) -> int:\n    pass\n",
@@ -634,7 +634,7 @@ tasks_data = [
     {
         "title": "Reshape the Matrix (LeetCode #566)",
         "slug": "leetcode-reshape-the-matrix",
-        "description": "Дана матрица `mat` размера $m \\times n$ и два числа $r$ и $c$. Преобразуйте матрицу в размер $r \\times c$, сохраняя построчный порядок обхода. Если преобразование невозможно, верните исходную матрицу.",
+        "description": "Дана матрица `mat` размера m \x n и два числа r и c. Преобразуйте матрицу в размер r \x c, сохраняя построчный порядок обхода. Если преобразование невозможно, верните исходную матрицу.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def matrix_reshape(mat: list, r: int, c: int) -> list:\n    pass\n",
@@ -697,7 +697,7 @@ tasks_data = [
     {
         "title": "You're a Square! (Codewars 7 kyu)",
         "slug": "codewars-youre-a-square",
-        "description": "Дано целое число `n`. Определите, является ли оно точным квадратом некоторого целого числа ($n = k^2$). Отрицательные числа квадратами целых чисел быть не могут.",
+        "description": "Дано целое число `n`. Определите, является ли оно точным квадратом некоторого целого числа (n = k^2). Отрицательные числа квадратами целых чисел быть не могут.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def is_square(n: int) -> bool:\n    pass\n",
@@ -713,7 +713,7 @@ tasks_data = [
     {
         "title": "Growth of a Population (Codewars 7 kyu)",
         "slug": "codewars-growth-of-a-population",
-        "description": "В городе население $p_0$. Каждый год оно увеличивается на $percent$ процентов, и еще прибывает $aug$ жителей. Верните количество полных лет, необходимых для достижения населения не менее $p$.",
+        "description": "В городе население p_0. Каждый год оно увеличивается на percent процентов, и еще прибывает aug жителей. Верните количество полных лет, необходимых для достижения населения не менее p.",
         "difficulty": Task.Difficulty.EASY,
         "points": 100,
         "starter_code": "def nb_year(p0: int, percent: float, aug: int, p: int) -> int:\n    pass\n",
