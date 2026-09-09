@@ -260,8 +260,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link px-3" href="{% url 'battle_list' %}">
-                            <i class="bi bi-swords me-1 text-danger"></i>Code Battle
+                        <a class="nav-link px-3 d-inline-flex align-items-center" href="{% url 'battle_list' %}">
+                            <span class="me-1 fs-6">⚔️</span>Code Battle
                         </a>
                     </li>
                     {% if user.is_authenticated %}
@@ -341,8 +341,8 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'battle_list' %}">
-                                        <i class="bi bi-swords me-2 text-danger"></i>Code Battle (Дуэли)
+                                    <a class="dropdown-item d-flex align-items-center" href="{% url 'battle_list' %}">
+                                        <span class="me-2">⚔️</span>Code Battle (Дуэли)
                                     </a>
                                 </li>
                                 <li>

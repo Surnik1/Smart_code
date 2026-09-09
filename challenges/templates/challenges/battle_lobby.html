@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Code Battle — Дуэли 1 на 1 — Smart Code{% endblock %}
 
@@ -26,8 +26,8 @@
                             <option value="{{ t.id }}">[{{ t.get_difficulty_display }}] {{ t.title }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" class="btn btn-danger fw-bold px-4 shadow">
-                            <i class="bi bi-swords me-2"></i>Создать дуэль
+                        <button type="submit" class="btn btn-danger fw-bold px-4 shadow d-inline-flex align-items-center">
+                            <span class="me-2">⚔️</span>Создать дуэль
                         </button>
                     </form>
                 </div>
@@ -94,8 +94,8 @@
                                     <i class="bi bi-eye me-1"></i>В комнату ожидания
                                 </a>
                             {% else %}
-                                <a href="{% url 'battle_join' b.id %}" class="btn btn-danger btn-sm w-100 fw-bold shadow-sm">
-                                    <i class="bi bi-swords me-1"></i>Принять бой!
+                                <a href="{% url 'battle_join' b.id %}" class="btn btn-danger btn-sm w-100 fw-bold shadow-sm d-inline-flex align-items-center justify-content-center">
+                                    <span class="me-1">⚔️</span>Принять бой!
                                 </a>
                             {% endif %}
                         </div>
