@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load markdown_extras %}
 
 {% block title %}Арена дуэли #{{ battle.id }}: {{ task.title }} — Smart Code{% endblock %}
@@ -25,7 +25,6 @@
         border: 1px solid #334155;
     }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -117,9 +116,12 @@
         </div>
     </div>
 </div>
+{{ starter_code|json_script:"starter-code-data" }}
+{% endblock %}
 
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 <script>
-    const starterCode = {{ starter_code|json_script:"starter-code-data" }};
     const initialCode = JSON.parse(document.getElementById('starter-code-data').textContent);
     let editor = null;
     let battleStatus = "{{ battle.status }}";
@@ -134,7 +136,15 @@
             theme: 'vs-dark',
             automaticLayout: true,
             fontSize: 14,
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            tabSize: 4,
+            insertSpaces: true
+        });
+
+        // Горячая клавиша Ctrl+Enter для быстрой сдачи решения
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+            submitBtn.click();
         });
     });
 
