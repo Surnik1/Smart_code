@@ -30,18 +30,24 @@ class Profile(models.Model):
 
     @property
     def level_number(self) -> int:
-        if self.xp < 100:
+        if self.xp < 3000:
             return 1
-        elif self.xp < 300:
+        elif self.xp < 10000:
             return 2
-        elif self.xp < 600:
+        elif self.xp < 40000:
             return 3
-        elif self.xp < 1000:
+        elif self.xp < 100000:
             return 4
-        elif self.xp < 1500:
+        elif self.xp < 500000:
             return 5
+        elif self.xp < 1500000:
+            return 6
+        elif self.xp < 5000000:
+            return 7
+        elif self.xp < 10000000:
+            return 8
         else:
-            return 6 + (self.xp - 1500) // 500
+            return 9 + (self.xp - 10000000) // 1000000
 
     @property
     def level_title(self) -> str:
@@ -50,21 +56,27 @@ class Profile(models.Model):
             2: "Junior II",
             3: "Middle I",
             4: "Middle II",
-            5: "Senior",
+            5: "Senior I",
+            6: "Senior II",
+            7: "Lead Developer",
+            8: "Principal Engineer",
         }
         return titles.get(self.level_number, "Grandmaster")
 
     @property
     def progress_percent(self) -> int:
-        lvl = self.level_number
         brackets = [
-            (0, 100),
-            (100, 300),
-            (300, 600),
-            (600, 1000),
-            (1000, 1500),
+            (0, 3000),
+            (3000, 10000),
+            (10000, 40000),
+            (40000, 100000),
+            (100000, 500000),
+            (500000, 1500000),
+            (1500000, 5000000),
+            (5000000, 10000000),
         ]
-        if lvl <= 5:
+        lvl = self.level_number
+        if 1 <= lvl <= len(brackets):
             low, high = brackets[lvl - 1]
             return min(100, max(0, int(((self.xp - low) / (high - low)) * 100)))
         return 100
@@ -118,14 +130,11 @@ class UserAchievement(models.Model):
         unique_together = ('user', 'achievement')
 
 
-# Сигналы для автоматического создания профиля при регистрации пользователя
+# Сигнал для автоматического создания профиля при регистрации пользователя
 @receiver(post_save, sender=User)
-def create_or_save_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
-    else:
-        Profile.objects.get_or_create(user=instance)
-        instance.profile.save()
 
 
 class Classroom(models.Model):

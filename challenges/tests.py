@@ -534,7 +534,7 @@ class GamificationServiceTests(TestCase):
         if 0 <= current_hour < 5:
             expected_xp += 50  # night_owl bonus
         self.assertEqual(self.user.profile.xp, expected_xp)
-        self.assertEqual(self.user.profile.level_title, "Junior II")
+        self.assertEqual(self.user.profile.level_title, "Junior I")
 
     def test_repeat_solve_no_double_xp(self):
         # Выдаем ачивку заранее, чтобы она не добавляла XP повторно
@@ -576,6 +576,60 @@ class GamificationServiceTests(TestCase):
         leaderboard = list(response.context['leaderboard'])
         self.assertEqual(leaderboard[0]['profile'].user.username, "pro_gamer")
         self.assertEqual(leaderboard[1]['profile'].user.username, "gamer")
+
+    def test_level_progression_thresholds(self):
+        """Проверка новой шкалы уровней: Middle от 10k, Senior от 100k, Grandmaster от 10M"""
+        profile = self.user.profile
+
+        # Junior
+        profile.xp = 0
+        self.assertEqual(profile.level_number, 1)
+        self.assertEqual(profile.level_title, "Junior I")
+        self.assertEqual(profile.progress_percent, 0)
+
+        profile.xp = 3000
+        self.assertEqual(profile.level_number, 2)
+        self.assertEqual(profile.level_title, "Junior II")
+
+        # Middle (от 10 000)
+        profile.xp = 10000
+        self.assertEqual(profile.level_number, 3)
+        self.assertEqual(profile.level_title, "Middle I")
+        self.assertEqual(profile.progress_percent, 0)
+
+        profile.xp = 25000  # середина между 10 000 и 40 000
+        self.assertEqual(profile.progress_percent, 50)
+
+        profile.xp = 40000
+        self.assertEqual(profile.level_number, 4)
+        self.assertEqual(profile.level_title, "Middle II")
+
+        # Senior (от 100 000)
+        profile.xp = 100000
+        self.assertEqual(profile.level_number, 5)
+        self.assertEqual(profile.level_title, "Senior I")
+
+        profile.xp = 500000
+        self.assertEqual(profile.level_number, 6)
+        self.assertEqual(profile.level_title, "Senior II")
+
+        profile.xp = 1500000
+        self.assertEqual(profile.level_number, 7)
+        self.assertEqual(profile.level_title, "Lead Developer")
+
+        profile.xp = 5000000
+        self.assertEqual(profile.level_number, 8)
+        self.assertEqual(profile.level_title, "Principal Engineer")
+
+        # Grandmaster (от 10 000 000)
+        profile.xp = 9999999
+        self.assertEqual(profile.level_number, 8)
+        self.assertEqual(profile.level_title, "Principal Engineer")
+
+        profile.xp = 10000000
+        self.assertEqual(profile.level_number, 9)
+        self.assertEqual(profile.level_title, "Grandmaster")
+        self.assertEqual(profile.progress_percent, 100)
 
 
 class TeacherAnalyticsTests(TestCase):
