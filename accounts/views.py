@@ -28,7 +28,20 @@ def profile_settings(request):
     profile = user.profile
     role_form = ProfileRoleForm(instance=profile)
 
+    # Разрешаем смену роли только если пользователь не имеет привязок к классам
+    has_taught_classes = user.taught_classes.exists()
+    has_joined_classes = user.joined_classes.exists()
+    can_change_role = not has_taught_classes and not has_joined_classes
+
     if request.method == 'POST' and 'change_role' in request.POST:
+        if not can_change_role:
+            messages.error(
+                request,
+                "Невозможно сменить роль: у вас есть привязка к классам. "
+                "Покиньте все классы или обратитесь к администратору."
+            )
+            return redirect('profile_settings')
+
         role_form = ProfileRoleForm(request.POST, instance=profile)
         if role_form.is_valid():
             role_form.save()
@@ -44,6 +57,7 @@ def profile_settings(request):
         'role_form': role_form,
         'total_submissions': total_submissions,
         'solved_count': solved_count,
+        'can_change_role': can_change_role,
     })
 
 
@@ -122,20 +136,30 @@ def student_assignments(request):
 def classroom_detail(request, pk):
     """Детальная страница конкретного класса (список учеников + назначение задач)"""
     classroom = get_object_or_404(Classroom, pk=pk)
-    
+
+    # Проверка доступа: только учитель класса или ученик класса
+    is_teacher = request.user == classroom.teacher
+    is_student = request.user in classroom.students.all()
+    if not is_teacher and not is_student and not request.user.is_superuser:
+        messages.error(request, "У вас нет доступа к этому классу.")
+        return redirect('classroom_list')
+
     if request.method == 'POST' and 'assign_task' in request.POST:
-        if request.user == classroom.teacher:
+        if is_teacher:
             task_id = request.POST.get('task_id')
             task = get_object_or_404(Task, id=task_id)
-            
+
             if not Assignment.objects.filter(classroom=classroom, task=task).exists():
                 Assignment.objects.create(classroom=classroom, task=task)
                 messages.success(request, f"Задача '{task.title}' успешно назначена классу '{classroom.name}'!")
             else:
                 messages.warning(request, "Эта задача уже была назначена данному классу.")
             return redirect('classroom_detail', pk=classroom.pk)
+        else:
+            messages.error(request, "Только учитель класса может назначать задачи.")
+            return redirect('classroom_detail', pk=classroom.pk)
 
-    all_tasks = Task.objects.all()
+    all_tasks = Task.objects.all() if is_teacher else None
     assigned_tasks = classroom.assignments.select_related('task').all()
     students = classroom.students.all()
 
@@ -144,4 +168,5 @@ def classroom_detail(request, pk):
         'students': students,
         'all_tasks': all_tasks,
         'assigned_tasks': assigned_tasks,
+        'is_teacher': is_teacher,
     })

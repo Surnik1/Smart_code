@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils import timezone
+from django.db import models
 from .models import Task, Submission, Tag, Assignment, CodeBattle
 from .forms import TaskForm, TestCaseFormSet
 from .services.runner import CodeRunnerService
@@ -256,6 +257,7 @@ def api_code_review(request, slug):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@login_required
 @require_POST
 def api_custom_test(request, slug):
     """AJAX эндпоинт для запуска решения на пользовательских входных данных (отладка/дебаг)"""
@@ -470,14 +472,14 @@ def battle_list(request):
     waiting_battles = CodeBattle.objects.filter(status=CodeBattle.Status.WAITING).select_related('task', 'creator')
     active_battles = CodeBattle.objects.filter(
         status=CodeBattle.Status.IN_PROGRESS
-    ).filter(creator=request.user) | CodeBattle.objects.filter(
-        status=CodeBattle.Status.IN_PROGRESS, opponent=request.user
-    )
+    ).filter(
+        models.Q(creator=request.user) | models.Q(opponent=request.user)
+    ).select_related('task', 'creator', 'opponent')
     all_tasks = Task.objects.all()
 
     return render(request, 'challenges/battle_lobby.html', {
         'waiting_battles': waiting_battles,
-        'active_battles': active_battles.distinct(),
+        'active_battles': active_battles,
         'tasks': all_tasks,
     })
 

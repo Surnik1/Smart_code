@@ -1,5 +1,5 @@
-from datetime import datetime
 from typing import Dict, Any, List
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from accounts.models import Profile, Achievement, UserAchievement
 from challenges.models import Task, Submission
@@ -79,7 +79,6 @@ class GamificationService:
     @classmethod
     def award_achievement(cls, user, code: str) -> bool:
         """Выдает ачивку пользователю, если она еще не была получена, и начисляет бонусный XP"""
-        cls.seed_achievements()
         try:
             achievement = Achievement.objects.get(code=code)
         except Achievement.DoesNotExist:
@@ -101,7 +100,6 @@ class GamificationService:
         Вызывается при успешном прохождении всех тестов задачи.
         Начисляет XP (если задача решается впервые), обновляет стрик и проверяет ачивки.
         """
-        cls.seed_achievements()
         profile, _ = Profile.objects.get_or_create(user=user)
 
         # 1. Проверяем, решалась ли эта задача пользователем ранее
@@ -154,7 +152,7 @@ class GamificationService:
                 new_achievements.append("Неудержимый ⚡ (+250 XP)")
 
         # Ночной кодер (с 00:00 до 05:00)
-        current_hour = datetime.now().hour
+        current_hour = timezone.now().hour
         if 0 <= current_hour < 5:
             if cls.award_achievement(user, "night_owl"):
                 new_achievements.append("Ночной кодер 🌙 (+50 XP)")

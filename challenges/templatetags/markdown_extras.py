@@ -1,43 +1,44 @@
-﻿import re
 import markdown
+import bleach
 from django import template
 from django.utils.safestring import mark_safe
+from challenges.utils import clean_ai_markdown
 
 register = template.Library()
 
-def clean_latex_and_math(text: str) -> str:
-    """
-    Удаляет синтаксис формул LaTeX ($...$), который ИИ иногда генерирует
-    для обозначения сложности O(n), заменяя на чистый и читаемый текст.
-    """
-    if not text:
-        return ""
+# Разрешённые HTML-теги и атрибуты для безопасного рендеринга Markdown
+ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'b', 'i', 'u', 'code', 'pre',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li',
+    'a', 'blockquote', 'hr',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'span', 'div', 'img', 'del', 'sub', 'sup',
+]
 
-    # \$\s*\\mathcal\{O\}\((.*?)\)\s*\$ -> O(\1)
-    text = re.sub(r'\$\s*\\mathcal\{[Oo]\}\((.*?)\)\s*\$', r'O(\1)', text)
-    # \\mathcal\{O\}\((.*?)\) -> O(\1)
-    text = re.sub(r'\\mathcal\{[Oo]\}\((.*?)\)', r'O(\1)', text)
-    # \$\s*O\((.*?)\)\s*\$ -> O(\1)
-    text = re.sub(r'\$\s*O\((.*?)\)\s*\$', r'O(\1)', text)
-    # \$\s*\\Theta\((.*?)\)\s*\$ -> Θ(\1)
-    text = re.sub(r'\$\s*\\Theta\((.*?)\)\s*\$', r'Θ(\1)', text)
-    # \$\s*\\Omega\((.*?)\)\s*\$ -> Ω(\1)
-    text = re.sub(r'\$\s*\\Omega\((.*?)\)\s*\$', r'Ω(\1)', text)
-    # Одиночные переменные в $...$ например $N$ -> N, $i$ -> i
-    text = re.sub(r'\$([A-Za-z0-9_+\-*^/ ]+)\$', r'\1', text)
+ALLOWED_ATTRIBUTES = {
+    'a': ['href', 'title', 'target', 'rel'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+    'code': ['class'],
+    'pre': ['class'],
+    'span': ['class'],
+    'div': ['class'],
+    'td': ['align'],
+    'th': ['align'],
+}
 
-    return text
 
 @register.filter(name='render_markdown')
 def render_markdown_filter(value):
     """
     Преобразует Markdown-текст (условие задачи, подсказки) в безопасный HTML.
     Поддерживает таблицы, блоки кода, списки, жирный текст и очистку от LaTeX.
+    HTML-вывод санитизируется через bleach для защиты от XSS.
     """
     if not value:
         return ""
-    
-    cleaned = clean_latex_and_math(str(value))
+
+    cleaned = clean_ai_markdown(str(value))
     html = markdown.markdown(
         cleaned,
         extensions=[
@@ -46,5 +47,5 @@ def render_markdown_filter(value):
             'sane_lists',
         ]
     )
-    return mark_safe(html)
-
+    safe_html = bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+    return mark_safe(safe_html)
