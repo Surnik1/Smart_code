@@ -4,3 +4,6 @@ func_timeout==4.3.5
 Markdown>=3.7
 python-dotenv>=1.0.0
 bleach>=6.0.0
+whitenoise>=6.6.0
+gunicorn>=21.2.0
+
