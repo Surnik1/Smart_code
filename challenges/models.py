@@ -40,6 +40,16 @@ class Task(models.Model):
         default="def solution():\n    pass", 
         verbose_name="Начальный шаблон кода"
     )
+    reference_solution = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Эталонное решение"
+    )
+    reference_solution_explanation = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Пояснение к эталонному решению"
+    )
     tags = models.ManyToManyField(
         Tag, 
         blank=True, 
@@ -147,3 +157,21 @@ class CodeBattle(models.Model):
         verbose_name = "Code Battle Дуэль"
         verbose_name_plural = "Code Battle Дуэли"
         ordering = ['-created_at']
+
+
+class TaskSolutionView(models.Model):
+    """
+    Фиксация того, что ученик сдался и посмотрел эталонный ответ к задаче.
+    После этого за решение данной задачи ученик НЕ может получить опыт (XP) и достижения.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='solution_views', verbose_name="Пользователь")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='solution_views', verbose_name="Задача")
+    viewed_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время просмотра")
+
+    def __str__(self):
+        return f"{self.user.username} посмотрел(а) ответ: {self.task.title}"
+
+    class Meta:
+        verbose_name = "Просмотр решения задачи"
+        verbose_name_plural = "Просмотры решений задач"
+        unique_together = ('user', 'task')

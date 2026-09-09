@@ -323,3 +323,94 @@ class GeminiAIService:
         except Exception as e:
             logger.error(f"Ошибка в AI-чате Gemini: {e}")
             raise RuntimeError(f"Ошибка чата с ИИ: {str(e)}")
+
+    @classmethod
+    def get_or_generate_solution(cls, task) -> Dict[str, str]:
+        """
+        Возвращает эталонное решение и разбор алгоритма.
+        Если решение ещё не сохранено в БД, генерирует его через Gemini AI,
+        валидирует и кэширует в поле task.reference_solution.
+        """
+        if task.reference_solution and task.reference_solution.strip():
+            return {
+                "solution": task.reference_solution.strip(),
+                "explanation": (task.reference_solution_explanation or "").strip()
+            }
+
+        client = cls._get_client()
+
+        sample_tests = []
+        for tc in task.test_cases.all()[:4]:
+            sample_tests.append(f"Вход: {tc.input_data} -> Ожидается: {tc.expected_output}")
+        sample_tests_str = "\n".join(sample_tests) if sample_tests else "Не указаны"
+
+        prompt = f"""
+Ты — ведущий преподаватель и Senior Python разработчик.
+Ученик сдался и запросил эталонное решение задачи по программированию.
+
+Название задачи: {task.title}
+Сложность: {task.difficulty}
+Описание:
+{task.description}
+
+Шаблон кода (starter_code):
+```python
+{task.starter_code}
+```
+
+Примеры тестов:
+{sample_tests_str}
+
+ТРЕБОВАНИЯ:
+1. Напиши правильное, идиоматичное, эффективное решение на Python (функция solution).
+2. Напиши понятное объяснение логики алгоритма (2-3 абзаца), включая временную O(...) и пространственную O(...) сложность.
+3. НЕ используй формулы LaTeX (никаких знаков $, \\mathcal). Используй чистый Markdown.
+
+Верни ответ СТРОГО в формате JSON без разметки вокруг со следующими ключами:
+{{
+  "solution": "полный код функции solution на python (сохраняй отступы через \\n)",
+  "explanation": "подробный разбор алгоритма и оценка сложности"
+}}
+"""
+
+        try:
+            raw_text = cls._generate_with_fallback(
+                client=client,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.3,
+                ),
+            )
+            raw_text = raw_text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            if raw_text.startswith("```"):
+                raw_text = raw_text[3:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+
+            match = re.search(r'(\{.*\})', raw_text.strip(), re.DOTALL)
+            if match:
+                raw_text = match.group(1)
+
+            data = json.loads(raw_text)
+            solution_code = clean_ai_markdown(data.get("solution", "")).strip()
+            explanation = clean_ai_markdown(data.get("explanation", "")).strip()
+
+            if solution_code:
+                task.reference_solution = solution_code
+                task.reference_solution_explanation = explanation
+                task.save(update_fields=['reference_solution', 'reference_solution_explanation'])
+
+            return {
+                "solution": solution_code,
+                "explanation": explanation
+            }
+        except Exception as e:
+            logger.error(f"Ошибка при генерации эталонного решения: {e}")
+            fallback_solution = task.starter_code
+            return {
+                "solution": fallback_solution,
+                "explanation": "Не удалось сгенерировать автоматический разбор решения."
+            }

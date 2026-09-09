@@ -114,6 +114,17 @@
         </div>
     </div>
 
+    <!-- Баннер-предупреждение: ответ был просмотрен (XP и ачивки заблокированы) -->
+    <div id="solution-penalty-banner" class="alert alert-warning py-2 px-3 mb-3 small d-flex align-items-center justify-content-between border-warning border-opacity-50 {% if not has_viewed_solution %}d-none{% endif %}" style="background-color: rgba(245, 158, 11, 0.12); color: #f59e0b;">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2 fs-6 text-warning"></i>
+            <span><strong>Внимание:</strong> Вы посмотрели эталонный ответ к этой задаче. Опыт (XP) и достижения за неё <strong>отключены</strong>.</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 fw-semibold ms-3 text-nowrap" id="btn-reopen-solution">
+            <i class="bi bi-code-slash me-1"></i>Открыть решение
+        </button>
+    </div>
+
     <div class="row g-3 task-workspace">
         <!-- Левая панель: Условие задачи и результат -->
         <div class="col-lg-5 d-flex flex-column description-pane pe-lg-3">
@@ -226,6 +237,7 @@
 
                     <div class="py-2 px-3 bg-dark border-top border-secondary-subtle d-flex justify-content-between align-items-center flex-wrap gap-2" style="flex-shrink: 0; z-index: 10;">
                         <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <button type="button" id="btn-ai-hint" class="btn btn-outline-info btn-sm fw-semibold shadow-sm">
                                 <i class="bi bi-robot me-1"></i>ИИ Ментор
                             </button>
@@ -233,7 +245,11 @@
                                 <i class="bi bi-rocket-takeoff me-1"></i>Разбор решения
                             </button>
                             <button type="button" class="btn btn-outline-primary btn-sm fw-semibold shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#aiChatDrawer">
+                            <button type="button" id="btn-ai-chat-drawer" class="btn btn-outline-primary btn-sm fw-semibold shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#aiChatDrawer">
                                 <i class="bi bi-chat-dots-fill me-1"></i>Чат с ИИ Ментором
+                            </button>
+                            <button type="button" id="btn-view-solution" class="btn btn-outline-danger btn-sm fw-semibold shadow-sm" title="Сдаться и открыть эталонное решение (XP и ачивки будут отключены)">
+                                <i class="bi bi-eye me-1"></i>Посмотреть ответ
                             </button>
                         </div>
                         <div class="d-flex align-items-center gap-3">
@@ -280,13 +296,87 @@
         </form>
     </div>
 </div>
+
+<!-- Модальное окно подтверждения сдачи и открытия ответа -->
+<div class="modal fade" id="surrenderModal" tabindex="-1" aria-labelledby="surrenderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border border-warning shadow-lg">
+            <div class="modal-header border-bottom border-secondary-subtle py-3">
+                <h5 class="modal-title fw-bold text-warning" id="surrenderModalLabel">
+                    <i class="bi bi-exclamation-octagon-fill me-2"></i>Сдаться и посмотреть ответ?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-3 text-light">Вы зашли в тупик? Вы можете открыть эталонное решение задачи с подробным разбором алгоритма, <strong>НО</strong>:</p>
+                <div class="p-3 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25 mb-3 text-light small">
+                    <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-x-circle-fill text-danger me-2 mt-1"></i>
+                        <span>Вы <strong>не получите опыт (XP)</strong> за решение этой задачи.</span>
+                    </div>
+                    <div class="d-flex align-items-start mb-2">
+                        <i class="bi bi-x-circle-fill text-danger me-2 mt-1"></i>
+                        <span>Эта задача <strong>не будет зачтена</strong> в ваши достижения (ачивки).</span>
+                    </div>
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                        <span>Вы сможете изучить правильный код, запустить его и разобраться, как устроено решение.</span>
+                    </div>
+                </div>
+                <p class="small text-muted mb-0">Это действие необратимо. Вы точно хотите открыть ответ?</p>
+            </div>
+            <div class="modal-footer border-top border-secondary-subtle py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Попробовать ещё самому</button>
+                <button type="button" id="btn-confirm-surrender" class="btn btn-danger btn-sm fw-semibold">
+                    <i class="bi bi-unlock-fill me-1"></i>Да, показать ответ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра эталонного решения -->
+<div class="modal fade" id="solutionModal" tabindex="-1" aria-labelledby="solutionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light border border-secondary shadow-lg">
+            <div class="modal-header border-bottom border-secondary-subtle py-3">
+                <h5 class="modal-title fw-bold text-info" id="solutionModalLabel">
+                    <i class="bi bi-code-square me-2"></i>Эталонное решение: {{ task.title }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="alert alert-warning py-2 mb-3 small border-warning border-opacity-25" style="background-color: rgba(245, 158, 11, 0.12); color: #fbbf24;">
+                    <i class="bi bi-info-circle-fill me-1 text-warning"></i>Эта задача отмечена как решенная с подсказкой ответа. Опыт и достижения за неё заблокированы.
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-semibold text-muted font-monospace"><i class="bi bi-filetype-py me-1 text-warning"></i>Python решение:</span>
+                    <button type="button" id="btn-insert-solution" class="btn btn-sm btn-outline-success fw-semibold">
+                        <i class="bi bi-arrow-down-square me-1"></i>Вставить в редактор
+                    </button>
+                </div>
+                <pre class="p-3 rounded bg-black border border-secondary text-info font-monospace small mb-3" id="solution-code-block" style="white-space: pre-wrap; overflow-x: auto; max-height: 280px;"></pre>
+
+                <h6 class="fw-bold text-light mb-2"><i class="bi bi-journal-text me-2 text-primary"></i>Разбор алгоритма:</h6>
+                <div id="solution-explanation-block" class="p-3 rounded bg-secondary bg-opacity-10 border border-secondary text-light small lh-base"></div>
+            </div>
+            <div class="modal-footer border-top border-secondary-subtle py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Monaco Editor Loader загружается ПОСЛЕ Bootstrap 5 JS во избежание AMD-конфликта -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 <script>
     const defaultStarterCode = `{{ task.starter_code|escapejs }}`;
     let editor = null;
     let lastTestError = '';
+    let hasViewedSolution = {{ has_viewed_solution|yesno:"true,false" }};
+    let cachedSolution = null;
 
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
     require(['vs/editor/editor.main'], function() {
@@ -530,6 +620,9 @@
                         if (data.gamification.new_achievements && data.gamification.new_achievements.length > 0) {
                             gamificationHtml += `<div class="mt-2 text-info fw-bold p-2 rounded bg-dark border border-info border-opacity-50">🏆 Достижение: ${data.gamification.new_achievements.join(', ')}!</div>`;
                         }
+                        if (data.gamification.solution_viewed) {
+                            gamificationHtml += `<div class="mt-2 text-warning small p-2 rounded bg-dark border border-warning border-opacity-25"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i>${data.gamification.message || 'Опыт и достижения отключены, так как вы посмотрели ответ.'}</div>`;
+                        }
                     }
 
                     resultAlert.className = 'alert alert-success mb-0 border-0';
@@ -698,6 +791,126 @@
             } finally {
                 chatSendBtn.disabled = false;
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    }
+
+    // Надёжное открытие панели чата с ИИ Ментором
+    const btnAiChatDrawer = document.getElementById('btn-ai-chat-drawer');
+    const aiChatDrawerEl = document.getElementById('aiChatDrawer');
+    if (btnAiChatDrawer && aiChatDrawerEl) {
+        btnAiChatDrawer.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.bootstrap && window.bootstrap.Offcanvas) {
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(aiChatDrawerEl);
+                offcanvas.show();
+            } else {
+                aiChatDrawerEl.classList.toggle('show');
+                aiChatDrawerEl.style.visibility = 'visible';
+            }
+        });
+    }
+
+    // Логика просмотра эталонного решения (Сдаться)
+    const btnViewSolution = document.getElementById('btn-view-solution');
+    const btnReopenSolution = document.getElementById('btn-reopen-solution');
+    const btnConfirmSurrender = document.getElementById('btn-confirm-surrender');
+    const btnInsertSolution = document.getElementById('btn-insert-solution');
+    const surrenderModalEl = document.getElementById('surrenderModal');
+    const solutionModalEl = document.getElementById('solutionModal');
+    const solutionPenaltyBanner = document.getElementById('solution-penalty-banner');
+    const solutionCodeBlock = document.getElementById('solution-code-block');
+    const solutionExplanationBlock = document.getElementById('solution-explanation-block');
+
+    async function loadAndShowSolution() {
+        if (cachedSolution) {
+            solutionCodeBlock.textContent = cachedSolution.solution;
+            solutionExplanationBlock.innerHTML = renderMarkdown(cachedSolution.explanation || 'Разбор алгоритма подготовлен.');
+            if (window.bootstrap && window.bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(solutionModalEl).show();
+            }
+            return;
+        }
+
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        try {
+            const res = await fetch("{% url 'api_reveal_solution' task.slug %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrf
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                cachedSolution = data;
+                hasViewedSolution = true;
+                solutionCodeBlock.textContent = data.solution;
+                solutionExplanationBlock.innerHTML = renderMarkdown(data.explanation || 'Разбор алгоритма подготовлен.');
+                if (solutionPenaltyBanner) {
+                    solutionPenaltyBanner.classList.remove('d-none');
+                }
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(solutionModalEl).show();
+                }
+            } else {
+                alert(data.error || 'Не удалось загрузить решение.');
+            }
+        } catch (err) {
+            alert('Ошибка сети при загрузке решения.');
+        }
+    }
+
+    if (btnViewSolution) {
+        btnViewSolution.addEventListener('click', function() {
+            {% if not user.is_authenticated %}
+            alert('Пожалуйста, войдите в аккаунт, чтобы просматривать решения.');
+            return;
+            {% endif %}
+
+            if (hasViewedSolution) {
+                loadAndShowSolution();
+            } else {
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(surrenderModalEl).show();
+                }
+            }
+        });
+    }
+
+    if (btnReopenSolution) {
+        btnReopenSolution.addEventListener('click', function() {
+            loadAndShowSolution();
+        });
+    }
+
+    if (btnConfirmSurrender) {
+        btnConfirmSurrender.addEventListener('click', async function() {
+            const origHtml = btnConfirmSurrender.innerHTML;
+            btnConfirmSurrender.disabled = true;
+            btnConfirmSurrender.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Открываем ответ...';
+
+            try {
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    const surrenderModal = bootstrap.Modal.getInstance(surrenderModalEl);
+                    if (surrenderModal) surrenderModal.hide();
+                }
+                await loadAndShowSolution();
+            } finally {
+                btnConfirmSurrender.disabled = false;
+                btnConfirmSurrender.innerHTML = origHtml;
+            }
+        });
+    }
+
+    if (btnInsertSolution) {
+        btnInsertSolution.addEventListener('click', function() {
+            if (cachedSolution && cachedSolution.solution && editor) {
+                editor.setValue(cachedSolution.solution);
+            }
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const solutionModal = bootstrap.Modal.getInstance(solutionModalEl);
+                if (solutionModal) solutionModal.hide();
             }
         });
     }

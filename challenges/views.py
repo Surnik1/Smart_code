@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db import models
 from .models import Task, Submission, Tag, Assignment, CodeBattle
+from .models import Task, Submission, Tag, Assignment, CodeBattle, TaskSolutionView
 from .forms import TaskForm, TestCaseFormSet
 from .services.runner import CodeRunnerService
 from .services.ai_service import GeminiAIService
@@ -122,10 +123,20 @@ def task_detail(request, slug):
                 "gamification": gamification_data,
             })
 
+    has_viewed_solution = False
+    if request.user.is_authenticated:
+        has_viewed_solution = TaskSolutionView.objects.filter(user=request.user, task=task).exists()
+
     return render(
         request,
         "challenges/task_detail.html",
         {"task": task, "result": result, "current_code": current_code},
+        {
+            "task": task,
+            "result": result,
+            "current_code": current_code,
+            "has_viewed_solution": has_viewed_solution,
+        },
     )
 
 
@@ -306,6 +317,29 @@ def api_ai_chat(request, slug):
         return JsonResponse({"success": True, "reply": reply})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def api_reveal_solution(request, slug):
+    """
+    Эндпоинт для ученика, который сдался и запросил эталонный ответ.
+    Фиксирует просмотр в TaskSolutionView (блокируя начисление XP и ачивок за задачу)
+    и возвращает эталонный код решения и объяснение.
+    """
+    task = get_object_or_404(Task, slug=slug)
+
+    # Фиксируем отметку о просмотре ответа
+    TaskSolutionView.objects.get_or_create(user=request.user, task=task)
+
+    data = GeminiAIService.get_or_generate_solution(task)
+
+    return JsonResponse({
+        "success": True,
+        "solution": data.get("solution", ""),
+        "explanation": data.get("explanation", ""),
+        "message": "Эталонное решение открыто. Опыт (XP) и достижения за эту задачу теперь отключены.",
+    })
 
 
 def leaderboard(request):

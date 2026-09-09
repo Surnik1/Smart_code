@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/ai/<slug:slug>/review/', views.api_code_review, name='api_code_review'),
     path('api/ai/<slug:slug>/chat/', views.api_ai_chat, name='api_ai_chat'),
     path('api/tasks/<slug:slug>/custom-test/', views.api_custom_test, name='api_custom_test'),
+    path('api/tasks/<slug:slug>/reveal-solution/', views.api_reveal_solution, name='api_reveal_solution'),
 
     # Страница конкретной задачи
     path('task/<slug:slug>/', views.task_detail, name='task_detail'),

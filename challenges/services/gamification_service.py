@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from accounts.models import Profile, Achievement, UserAchievement
 from challenges.models import Task, Submission
+from challenges.models import Task, Submission, TaskSolutionView
 
 User = get_user_model()
 
@@ -99,8 +100,27 @@ class GamificationService:
         """
         Вызывается при успешном прохождении всех тестов задачи.
         Начисляет XP (если задача решается впервые), обновляет стрик и проверяет ачивки.
+        Начисляет XP (если задача решается впервые и ответ не был подсмотрен),
+        обновляет стрик и проверяет ачивки.
+        Если ученик подсмотрел ответ (TaskSolutionView), XP и ачивки за эту задачу отключаются.
         """
         profile, _ = Profile.objects.get_or_create(user=user)
+
+        # 0. Проверяем, подсмотрел ли ученик эталонный ответ
+        has_viewed_solution = TaskSolutionView.objects.filter(user=user, task=task).exists()
+        if has_viewed_solution:
+            profile.update_streak()
+            profile.refresh_from_db()
+            return {
+                "xp_earned": 0,
+                "total_xp": profile.xp,
+                "level_title": profile.level_title,
+                "level_number": profile.level_number,
+                "streak_days": profile.streak_days,
+                "new_achievements": [],
+                "solution_viewed": True,
+                "message": "Решение верное, но опыт (XP) и достижения заблокированы, так как вы посмотрели ответ.",
+            }
 
         # 1. Проверяем, решалась ли эта задача пользователем ранее
         sub_query = Submission.objects.filter(user=user, task=task, status=Submission.Status.PASSED)
@@ -122,11 +142,15 @@ class GamificationService:
         profile.update_streak()
 
         # 3. Проверяем достижения
+        # 3. Проверяем достижения (исключая задачи, где был просмотрен ответ)
         new_achievements: List[str] = []
 
         # Первая кровь (первая решенная задача)
+        # Задачи, где ученик подсмотрел ответ, не учитываются в ачивках
+        viewed_task_ids = TaskSolutionView.objects.filter(user=user).values_list('task_id', flat=True)
         solved_count = (
             Submission.objects.filter(user=user, status=Submission.Status.PASSED)
+            .exclude(task_id__in=viewed_task_ids)
             .values('task')
             .distinct()
             .count()
@@ -166,5 +190,6 @@ class GamificationService:
             "level_number": profile.level_number,
             "streak_days": profile.streak_days,
             "new_achievements": new_achievements,
+            "solution_viewed": False,
         }
 

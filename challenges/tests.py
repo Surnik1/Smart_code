@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from challenges.models import Task, TestCase as TaskTestCase, Submission, Tag
+from challenges.models import Task, TestCase as TaskTestCase, Submission, Tag, TaskSolutionView
 from challenges.services.runner import CodeRunnerService, parse_test_inputs, SecurityError
 
 User = get_user_model()
@@ -772,5 +773,81 @@ class CodeBattleTests(TestCase):
         self.assertEqual(battle.status, CodeBattle.Status.FINISHED)
         self.assertEqual(battle.winner, self.user1)
         self.assertTrue(battle.creator_passed)
+
+
+class SolutionRevealAndGamificationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="stuck_student", password="password123")
+        self.task = Task.objects.create(
+            title="Сумма двух чисел",
+            slug="sum-two-numbers-test",
+            description="Сложить два числа a и b",
+            difficulty=Task.Difficulty.EASY,
+            starter_code="def solution(a, b):\n    pass",
+            reference_solution="def solution(a, b):\n    return a + b",
+            reference_solution_explanation="Просто используем оператор сложения a + b. Временная сложность O(1)."
+        )
+        TaskTestCase.objects.create(
+            task=self.task,
+            input_data="3, 5",
+            expected_output="8",
+            is_hidden=False
+        )
+        GamificationService.seed_achievements()
+
+    def test_reveal_solution_requires_login(self):
+        url = reverse('api_reveal_solution', kwargs={'slug': self.task.slug})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)  # Redirects to login
+
+    def test_reveal_solution_success(self):
+        self.client.login(username="stuck_student", password="password123")
+        url = reverse('api_reveal_solution', kwargs={'slug': self.task.slug})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['solution'], self.task.reference_solution)
+        self.assertIn("сложения", data['explanation'])
+        self.assertTrue(TaskSolutionView.objects.filter(user=self.user, task=self.task).exists())
+
+    def test_passed_solution_with_viewed_answer_awards_zero_xp_and_no_achievements(self):
+        # Отмечаем, что ученик открыл ответ
+        TaskSolutionView.objects.create(user=self.user, task=self.task)
+        initial_xp = self.user.profile.xp
+
+        submission = Submission.objects.create(
+            task=self.task,
+            user=self.user,
+            code=self.task.reference_solution,
+            status=Submission.Status.PASSED,
+        )
+
+        result = GamificationService.on_task_passed(self.user, self.task, submission)
+        self.assertEqual(result['xp_earned'], 0)
+        self.assertTrue(result['solution_viewed'])
+        self.assertEqual(len(result['new_achievements']), 0)
+
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.xp, initial_xp)
+        self.assertFalse(self.user.achievements.filter(achievement__code="first_blood").exists())
+
+    def test_task_detail_context_has_viewed_solution(self):
+        self.client.login(username="stuck_student", password="password123")
+        url = reverse('task_detail', kwargs={'slug': self.task.slug})
+
+        # До просмотра решения
+        resp1 = self.client.get(url)
+        self.assertEqual(resp1.status_code, 200)
+        self.assertFalse(resp1.context['has_viewed_solution'])
+
+        # Фиксируем просмотр решения
+        TaskSolutionView.objects.create(user=self.user, task=self.task)
+
+        # После просмотра решения
+        resp2 = self.client.get(url)
+        self.assertEqual(resp2.status_code, 200)
+        self.assertTrue(resp2.context['has_viewed_solution'])
+
 
 
