@@ -185,6 +185,7 @@ class ViewsAndIntegrationTests(TestCase):
             input_data="3, 4",
             expected_output="12",
         )
+        GamificationService.seed_achievements()
 
     def test_task_list_sorting_and_rendering(self):
         """Проверка страницы каталога задач и всех вариантов сортировки"""
@@ -506,6 +507,8 @@ class GamificationServiceTests(TestCase):
             difficulty=Task.Difficulty.EASY,
             starter_code="def solution(): return 1",
         )
+        # Ачивки теперь создаются через management command, но в тестах сидим вручную
+        GamificationService.seed_achievements()
 
     def test_seed_achievements(self):
         GamificationService.seed_achievements()
@@ -525,12 +528,21 @@ class GamificationServiceTests(TestCase):
         self.assertEqual(result['streak_days'], 1)
         self.assertTrue(any('Первая кровь' in a for a in result['new_achievements']))
         self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.xp, 100)  # 50 task + 50 first_blood
+        from django.utils import timezone as tz
+        current_hour = tz.now().hour
+        expected_xp = 100  # task + first_blood
+        if 0 <= current_hour < 5:
+            expected_xp += 50  # night_owl bonus
+        self.assertEqual(self.user.profile.xp, expected_xp)
         self.assertEqual(self.user.profile.level_title, "Junior II")
 
     def test_repeat_solve_no_double_xp(self):
         # Выдаем ачивку заранее, чтобы она не добавляла XP повторно
         GamificationService.award_achievement(self.user, "first_blood")
+        # Если ночное UTC-время — выдаем night_owl тоже, чтобы она не мешала подсчёту
+        from django.utils import timezone as tz
+        if 0 <= tz.now().hour < 5:
+            GamificationService.award_achievement(self.user, "night_owl")
         self.user.profile.refresh_from_db()
         initial_xp = self.user.profile.xp
 
@@ -665,6 +677,7 @@ class CodeBattleTests(TestCase):
             input_data="5, 7",
             expected_output="12",
         )
+        GamificationService.seed_achievements()
 
     def test_battle_create_and_join(self):
         self.client.login(username="player1", password="password123")
