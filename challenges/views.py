@@ -130,7 +130,6 @@ def task_detail(request, slug):
     return render(
         request,
         "challenges/task_detail.html",
-        {"task": task, "result": result, "current_code": current_code},
         {
             "task": task,
             "result": result,
