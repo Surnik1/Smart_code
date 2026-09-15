@@ -2,7 +2,6 @@ from typing import Dict, Any, List
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from accounts.models import Profile, Achievement, UserAchievement
-from challenges.models import Task, Submission
 from challenges.models import Task, Submission, TaskSolutionView
 
 User = get_user_model()
@@ -99,7 +98,6 @@ class GamificationService:
     def on_task_passed(cls, user, task: Task, submission: Submission = None) -> Dict[str, Any]:
         """
         Вызывается при успешном прохождении всех тестов задачи.
-        Начисляет XP (если задача решается впервые), обновляет стрик и проверяет ачивки.
         Начисляет XP (если задача решается впервые и ответ не был подсмотрен),
         обновляет стрик и проверяет ачивки.
         Если ученик подсмотрел ответ (TaskSolutionView), XP и ачивки за эту задачу отключаются.
@@ -141,12 +139,10 @@ class GamificationService:
         # 2. Обновляем Daily Streak
         profile.update_streak()
 
-        # 3. Проверяем достижения
         # 3. Проверяем достижения (исключая задачи, где был просмотрен ответ)
         new_achievements: List[str] = []
 
-        # Первая кровь (первая решенная задача)
-        # Задачи, где ученик подсмотрел ответ, не учитываются в ачивках
+        # Первая кровь (первая решенная задача, где ученик не смотрел ответ)
         viewed_task_ids = TaskSolutionView.objects.filter(user=user).values_list('task_id', flat=True)
         solved_count = (
             Submission.objects.filter(user=user, status=Submission.Status.PASSED)

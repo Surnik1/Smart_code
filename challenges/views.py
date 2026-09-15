@@ -6,8 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils import timezone
-from django.db import models
-from .models import Task, Submission, Tag, Assignment, CodeBattle
+from django.db import transaction
+from django.db.models import Q
 from .models import Task, Submission, Tag, Assignment, CodeBattle, TaskSolutionView
 from .forms import TaskForm, TestCaseFormSet
 from .services.runner import CodeRunnerService
@@ -209,10 +209,17 @@ def api_generate_task(request):
 
 
 @login_required
+@require_POST
 def api_code_hint(request, slug):
     """API наводящих подсказок от ИИ-ментора без выдачи готового решения"""
     if request.method != "POST":
         return JsonResponse({"error": "Метод не поддерживается"}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "success": False,
+            "error": "Для использования подсказок ИИ Ментора необходимо войти в аккаунт.",
+            "need_login": True
+        }, status=401)
 
     task = get_object_or_404(Task, slug=slug)
 
@@ -240,10 +247,17 @@ def api_code_hint(request, slug):
 
 
 @login_required
+@require_POST
 def api_code_review(request, slug):
     """API анализа сложности, чистоты кода и рефакторинга после решения"""
     if request.method != "POST":
         return JsonResponse({"error": "Метод не поддерживается"}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "success": False,
+            "error": "Для использования ИИ-рецензирования необходимо войти в аккаунт.",
+            "need_login": True
+        }, status=401)
 
     task = get_object_or_404(Task, slug=slug)
 
@@ -287,9 +301,17 @@ def api_custom_test(request, slug):
     return JsonResponse(result)
 
 
+@login_required
 @require_POST
 def api_ai_chat(request, slug):
     """Интерактивный чат с AI-ментором по конкретной задаче (многошаговый диалог)"""
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "success": False,
+            "error": "Для общения с ИИ Ментором необходимо войти в аккаунт.",
+            "need_login": True
+        }, status=401)
+
     task = get_object_or_404(Task, slug=slug)
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -326,6 +348,13 @@ def api_reveal_solution(request, slug):
     Фиксирует просмотр в TaskSolutionView (блокируя начисление XP и ачивок за задачу)
     и возвращает эталонный код решения и объяснение.
     """
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "success": False,
+            "error": "Для просмотра авторского решения необходимо войти в аккаунт.",
+            "need_login": True
+        }, status=401)
+
     task = get_object_or_404(Task, slug=slug)
 
     # Фиксируем отметку о просмотре ответа
@@ -506,7 +535,7 @@ def battle_list(request):
     active_battles = CodeBattle.objects.filter(
         status=CodeBattle.Status.IN_PROGRESS
     ).filter(
-        models.Q(creator=request.user) | models.Q(opponent=request.user)
+        Q(creator=request.user) | Q(opponent=request.user)
     ).select_related('task', 'creator', 'opponent')
     all_tasks = Task.objects.all()
 
@@ -612,22 +641,28 @@ def api_battle_submit(request, battle_id):
     result = CodeRunnerService.execute_solution(code, test_cases)
 
     if result['passed']:
-        if is_creator:
-            battle.creator_passed = True
-        else:
-            battle.opponent_passed = True
+        # Атомарно фиксируем код и победителя с защитой от состояния гонки
+        with transaction.atomic():
+            battle = CodeBattle.objects.select_for_update().get(id=battle_id)
+            if is_creator:
+                battle.creator_passed = True
+                battle.creator_code = code
+            else:
+                battle.opponent_passed = True
+                battle.opponent_code = code
 
-        # Если победитель еще не определен — этот игрок победил!
-        if not battle.winner:
-            battle.winner = request.user
-            battle.status = CodeBattle.Status.FINISHED
-            battle.finished_at = timezone.now()
-            # Награда гладиатору
-            GamificationService.award_achievement(request.user, 'battle_winner')
-            prof, _ = Profile.objects.get_or_create(user=request.user)
-            prof.add_xp(100)
-
-    battle.save()
+            # Если победитель еще не определен — этот игрок победил!
+            if not battle.winner:
+                battle.winner = request.user
+                battle.status = CodeBattle.Status.FINISHED
+                battle.finished_at = timezone.now()
+                # Награда гладиатору
+                GamificationService.award_achievement(request.user, 'battle_winner')
+                prof, _ = Profile.objects.get_or_create(user=request.user)
+                prof.add_xp(100)
+            battle.save()
+    else:
+        battle.save()
 
     return JsonResponse({
         'success': True,

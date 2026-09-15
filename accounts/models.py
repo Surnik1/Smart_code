@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from datetime import timedelta
+from django.utils import timezone
 
 from datetime import date, timedelta
 
@@ -87,6 +89,7 @@ class Profile(models.Model):
 
     def update_streak(self):
         today = date.today()
+        today = timezone.now().date()
         if not self.last_solve_date:
             self.streak_days = 1
         elif self.last_solve_date == today:

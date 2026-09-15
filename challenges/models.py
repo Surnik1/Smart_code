@@ -100,6 +100,7 @@ class Submission(models.Model):
         max_length=10, 
         choices=Status.choices, 
         default=Status.PENDING,
+        db_index=True,
         verbose_name="Статус"
     )
     execution_time = models.FloatField(null=True, blank=True, verbose_name="Время выполнения (сек)")
@@ -141,6 +142,7 @@ class CodeBattle(models.Model):
     opponent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='joined_battles', verbose_name="Соперник")
     winner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='won_battles', verbose_name="Победитель")
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.WAITING, verbose_name="Статус")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.WAITING, db_index=True, verbose_name="Статус")
     creator_code = models.TextField(blank=True, default="", verbose_name="Код создателя")
     opponent_code = models.TextField(blank=True, default="", verbose_name="Код соперника")
     creator_passed = models.BooleanField(default=False, verbose_name="Создатель прошел тесты")

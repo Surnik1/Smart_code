@@ -123,6 +123,49 @@ def parse_test_inputs(input_str: str) -> List[Any]:
             raise ValueError(f"Не удалось безопасно распознать входные данные: '{input_str}' ({err})")
 
 
+def parse_expected_output(expected_str: str) -> Any:
+    """
+    Безопасный парсинг ожидаемого значения тест-кейса.
+    Сначала пытается распарсить как питоновский литерал (int, float, list, dict, bool, tuple, set),
+    а при невозможности возвращает исходную строку.
+    """
+    cleaned = expected_str.strip()
+    try:
+        return ast.literal_eval(cleaned)
+    except Exception:
+        return cleaned
+
+
+def compare_results(actual: Any, expected_raw: str) -> bool:
+    """
+    Интеллектуальное сравнение результата выполнения функции и ожидаемого значения.
+    Сравнивает как на уровне типизированных объектов Python, так и со строковым представлением.
+    """
+    expected_parsed = parse_expected_output(expected_raw)
+
+    # 1. Прямое сравнение значений объектов
+    if actual == expected_parsed:
+        return True
+
+    # 2. Булевы типы не должны неявно совпадать с числом 1 / 0
+    if isinstance(actual, bool) and not isinstance(expected_parsed, bool):
+        return False
+    if not isinstance(actual, bool) and isinstance(expected_parsed, bool):
+        return False
+
+    # 3. Нормализованное сравнение строк (для текстовых ответов)
+    actual_str = str(actual).strip()
+    expected_clean = expected_raw.strip()
+    if actual_str == expected_clean:
+        return True
+
+    # 4. Обработка кортеж <-> список (если тест ожидает [1, 2], а вернули (1, 2))
+    if isinstance(actual, (list, tuple)) and isinstance(expected_parsed, (list, tuple)):
+        return list(actual) == list(expected_parsed)
+
+    return False
+
+
 class StdoutCollector:
     """
     Изолированный потокобезопасный сборщик вывода print() с защитой от переполнения памяти.
@@ -133,15 +176,25 @@ class StdoutCollector:
         self.current_length = 0
 
     def print(self, *args, sep=' ', end='\n'):
-        text = sep.join(str(a) for a in args) + end
-        if self.current_length < self.max_chars:
-            remaining = self.max_chars - self.current_length
-            if len(text) > remaining:
-                self.chunks.append(text[:remaining] + "\n... [вывод обрезан из-за превышения лимита 5000 символов]")
-                self.current_length = self.max_chars
-            else:
-                self.chunks.append(text)
-                self.current_length += len(text)
+        if self.current_length >= self.max_chars:
+            return
+
+        # Защита от создания гигантских строк в RAM: усекаем каждый аргумент до оставшегося лимита
+        remaining = self.max_chars - self.current_length
+        safe_args = []
+        for a in args:
+            s = str(a)
+            if len(s) > remaining:
+                s = s[:remaining]
+            safe_args.append(s)
+
+        text = sep.join(safe_args) + end
+        if len(text) > remaining:
+            self.chunks.append(text[:remaining] + "\n... [вывод обрезан из-за превышения лимита 5000 символов]")
+            self.current_length = self.max_chars
+        else:
+            self.chunks.append(text)
+            self.current_length += len(text)
 
     def get_output(self) -> str:
         return "".join(self.chunks).strip()
@@ -246,18 +299,16 @@ class CodeRunnerService:
                 elapsed = time.perf_counter() - start_t
                 total_time += elapsed
 
-                actual_str = str(output).strip()
-                expected_str = str(test.expected_output).strip()
-
-                if actual_str != expected_str:
+                if not compare_results(output, test.expected_output):
                     test_label = f"Тест #{index}"
                     input_display = test.input_data
                     expected_display = test.expected_output
+                    actual_display = repr(output) if not isinstance(output, str) else output
                     
                     return {
                         'passed': False,
                         'status': 'failed',
-                        'message': f"{test_label} не пройден! Вход: {input_display} | Ожидалось: {expected_display} | Получено: {actual_str}",
+                        'message': f"{test_label} не пройден! Вход: {input_display} | Ожидалось: {expected_display} | Получено: {actual_display}",
                         'execution_time': round(total_time, 4),
                         'stdout': collector.get_output(),
                     }

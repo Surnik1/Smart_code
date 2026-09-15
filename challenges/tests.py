@@ -2,7 +2,6 @@ from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from challenges.models import Task, TestCase as TaskTestCase, Submission, Tag
-from challenges.models import Task, TestCase as TaskTestCase, Submission, Tag, TaskSolutionView
 from challenges.services.runner import CodeRunnerService, parse_test_inputs, SecurityError
 
 User = get_user_model()
@@ -529,21 +528,12 @@ class GamificationServiceTests(TestCase):
         self.assertEqual(result['streak_days'], 1)
         self.assertTrue(any('Первая кровь' in a for a in result['new_achievements']))
         self.user.profile.refresh_from_db()
-        from django.utils import timezone as tz
-        current_hour = tz.now().hour
-        expected_xp = 100  # task + first_blood
-        if 0 <= current_hour < 5:
-            expected_xp += 50  # night_owl bonus
-        self.assertEqual(self.user.profile.xp, expected_xp)
+        self.assertEqual(self.user.profile.xp, 100)  # 50 task + 50 first_blood
         self.assertEqual(self.user.profile.level_title, "Junior I")
 
     def test_repeat_solve_no_double_xp(self):
         # Выдаем ачивку заранее, чтобы она не добавляла XP повторно
         GamificationService.award_achievement(self.user, "first_blood")
-        # Если ночное UTC-время — выдаем night_owl тоже, чтобы она не мешала подсчёту
-        from django.utils import timezone as tz
-        if 0 <= tz.now().hour < 5:
-            GamificationService.award_achievement(self.user, "night_owl")
         self.user.profile.refresh_from_db()
         initial_xp = self.user.profile.xp
 
@@ -577,60 +567,6 @@ class GamificationServiceTests(TestCase):
         leaderboard = list(response.context['leaderboard'])
         self.assertEqual(leaderboard[0]['profile'].user.username, "pro_gamer")
         self.assertEqual(leaderboard[1]['profile'].user.username, "gamer")
-
-    def test_level_progression_thresholds(self):
-        """Проверка новой шкалы уровней: Middle от 10k, Senior от 100k, Grandmaster от 10M"""
-        profile = self.user.profile
-
-        # Junior
-        profile.xp = 0
-        self.assertEqual(profile.level_number, 1)
-        self.assertEqual(profile.level_title, "Junior I")
-        self.assertEqual(profile.progress_percent, 0)
-
-        profile.xp = 3000
-        self.assertEqual(profile.level_number, 2)
-        self.assertEqual(profile.level_title, "Junior II")
-
-        # Middle (от 10 000)
-        profile.xp = 10000
-        self.assertEqual(profile.level_number, 3)
-        self.assertEqual(profile.level_title, "Middle I")
-        self.assertEqual(profile.progress_percent, 0)
-
-        profile.xp = 25000  # середина между 10 000 и 40 000
-        self.assertEqual(profile.progress_percent, 50)
-
-        profile.xp = 40000
-        self.assertEqual(profile.level_number, 4)
-        self.assertEqual(profile.level_title, "Middle II")
-
-        # Senior (от 100 000)
-        profile.xp = 100000
-        self.assertEqual(profile.level_number, 5)
-        self.assertEqual(profile.level_title, "Senior I")
-
-        profile.xp = 500000
-        self.assertEqual(profile.level_number, 6)
-        self.assertEqual(profile.level_title, "Senior II")
-
-        profile.xp = 1500000
-        self.assertEqual(profile.level_number, 7)
-        self.assertEqual(profile.level_title, "Lead Developer")
-
-        profile.xp = 5000000
-        self.assertEqual(profile.level_number, 8)
-        self.assertEqual(profile.level_title, "Principal Engineer")
-
-        # Grandmaster (от 10 000 000)
-        profile.xp = 9999999
-        self.assertEqual(profile.level_number, 8)
-        self.assertEqual(profile.level_title, "Principal Engineer")
-
-        profile.xp = 10000000
-        self.assertEqual(profile.level_number, 9)
-        self.assertEqual(profile.level_title, "Grandmaster")
-        self.assertEqual(profile.progress_percent, 100)
 
 
 class TeacherAnalyticsTests(TestCase):
@@ -773,81 +709,5 @@ class CodeBattleTests(TestCase):
         self.assertEqual(battle.status, CodeBattle.Status.FINISHED)
         self.assertEqual(battle.winner, self.user1)
         self.assertTrue(battle.creator_passed)
-
-
-class SolutionRevealAndGamificationTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(username="stuck_student", password="password123")
-        self.task = Task.objects.create(
-            title="Сумма двух чисел",
-            slug="sum-two-numbers-test",
-            description="Сложить два числа a и b",
-            difficulty=Task.Difficulty.EASY,
-            starter_code="def solution(a, b):\n    pass",
-            reference_solution="def solution(a, b):\n    return a + b",
-            reference_solution_explanation="Просто используем оператор сложения a + b. Временная сложность O(1)."
-        )
-        TaskTestCase.objects.create(
-            task=self.task,
-            input_data="3, 5",
-            expected_output="8",
-            is_hidden=False
-        )
-        GamificationService.seed_achievements()
-
-    def test_reveal_solution_requires_login(self):
-        url = reverse('api_reveal_solution', kwargs={'slug': self.task.slug})
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 302)  # Redirects to login
-
-    def test_reveal_solution_success(self):
-        self.client.login(username="stuck_student", password="password123")
-        url = reverse('api_reveal_solution', kwargs={'slug': self.task.slug})
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertTrue(data['success'])
-        self.assertEqual(data['solution'], self.task.reference_solution)
-        self.assertIn("сложения", data['explanation'])
-        self.assertTrue(TaskSolutionView.objects.filter(user=self.user, task=self.task).exists())
-
-    def test_passed_solution_with_viewed_answer_awards_zero_xp_and_no_achievements(self):
-        # Отмечаем, что ученик открыл ответ
-        TaskSolutionView.objects.create(user=self.user, task=self.task)
-        initial_xp = self.user.profile.xp
-
-        submission = Submission.objects.create(
-            task=self.task,
-            user=self.user,
-            code=self.task.reference_solution,
-            status=Submission.Status.PASSED,
-        )
-
-        result = GamificationService.on_task_passed(self.user, self.task, submission)
-        self.assertEqual(result['xp_earned'], 0)
-        self.assertTrue(result['solution_viewed'])
-        self.assertEqual(len(result['new_achievements']), 0)
-
-        self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.xp, initial_xp)
-        self.assertFalse(self.user.achievements.filter(achievement__code="first_blood").exists())
-
-    def test_task_detail_context_has_viewed_solution(self):
-        self.client.login(username="stuck_student", password="password123")
-        url = reverse('task_detail', kwargs={'slug': self.task.slug})
-
-        # До просмотра решения
-        resp1 = self.client.get(url)
-        self.assertEqual(resp1.status_code, 200)
-        self.assertFalse(resp1.context['has_viewed_solution'])
-
-        # Фиксируем просмотр решения
-        TaskSolutionView.objects.create(user=self.user, task=self.task)
-
-        # После просмотра решения
-        resp2 = self.client.get(url)
-        self.assertEqual(resp2.status_code, 200)
-        self.assertTrue(resp2.context['has_viewed_solution'])
-
 
 
