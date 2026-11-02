@@ -172,7 +172,7 @@ class GamificationService:
                 new_achievements.append("Неудержимый ⚡ (+250 XP)")
 
         # Ночной кодер (с 00:00 до 05:00)
-        current_hour = timezone.now().hour
+        current_hour = timezone.localtime().hour
         if 0 <= current_hour < 5:
             if cls.award_achievement(user, "night_owl"):
                 new_achievements.append("Ночной кодер 🌙 (+50 XP)")
