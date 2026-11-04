@@ -680,7 +680,7 @@ def generate_stand():
                 <!-- ДИАГРАММЫ ОПРОСА 150 РЕСПОНДЕНТОВ -->
                 <div class="section-headline">
                     <span>ЭКСПЕРИМЕНТАЛЬНАЯ ВЕРИФИКАЦИЯ (АНКЕТИРОВАНИЕ 150 УЧАЩИХСЯ)</span>
-                    <span style="font-size: 19px; color: #16a34a; font-weight: 700;">Google Forms N=150</span>
+                    <span style="font-size: 19px; color: #16a34a; font-weight: 700;">Google Forms</span>
                 </div>
 
                 <div class="charts-row">

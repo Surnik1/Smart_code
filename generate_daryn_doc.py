@@ -571,13 +571,13 @@ def create_document():
             p.add_run().add_picture(img_file, width=Inches(width_in))
             add_p(caption, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2, italic=True, font_size=9.0, indent=False)
 
-    add_chart_item('chart_monaco.png', "Рисунок 2. Оценка эргономики редактора Monaco Editor в сравнении с IDLE (N=150)")
+    add_chart_item('chart_monaco.png', "Рисунок 2. Оценка эргономики редактора Monaco Editor в сравнении с IDLE")
     add_p("Как видно из рисунка 2, 80.7% респондентов (121 чел.) признали Monaco Editor «намного удобнее» стандартного IDLE благодаря автодополнению кода.", space_after=2, font_size=12, line_spacing=1.15)
 
-    add_chart_item('chart_ai.png', "Рисунок 3. Оценка эффективности подсказок AI-ментора в поиске ошибок (N=150)")
+    add_chart_item('chart_ai.png', "Рисунок 3. Оценка эффективности подсказок AI-ментора в поиске ошибок")
     add_p("Данные рисунка 3 подтверждают: 76.0% учащихся (114 чел.) находят ошибки с помощью Сократических подсказок ИИ без списывания готовых решений.", space_after=2, font_size=12, line_spacing=1.15)
 
-    add_chart_item('chart_classroom.png', "Рисунок 4. Оценка удобства мониторинга заданий и дедлайнов в классе (N=150)")
+    add_chart_item('chart_classroom.png', "Рисунок 4. Оценка удобства мониторинга заданий и дедлайнов в классе")
     add_p("Согласно рисунку 4, 86.0% опрошенных отметили высокую прозрачность отслеживания сроков выполнения заданий в интерфейсе виртуального класса.", space_after=0, font_size=12, line_spacing=1.15)
 
     # Третья страница Главы 3 (СТР. 17)
