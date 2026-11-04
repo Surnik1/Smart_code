@@ -11,6 +11,7 @@ ENV/
 # Django
 *.log
 local_settings.py
+db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
@@ -28,4 +29,23 @@ staticfiles/
 Thumbs.db
 Desktop.ini
 .DS_Store
-db.sqlite3
+
+# Documentation, research paper, presentation, and stand materials (Local only)
+Папка для ворда/
+extracted_images/
+build_stand.py
+create_stand_materials_doc.py
+generate_daryn_doc.py
+stand_layout.html
+*.docx
+*.pdf
+*.pptx
+chart_*.png
+plagiat_result.png
+smart_code_arch.png
+image*.png
+image*.gif
+hdphoto*.wdp
+crop_*.png
+update_*.py
+apply_*.py
