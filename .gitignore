@@ -56,3 +56,8 @@ top_*.png
 bottom_*.png
 template_upscaled.png
 qr_stand.png
+
+stand_custom_template.html
+
+table_*.png
+_trash/
