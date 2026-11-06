@@ -54,4 +54,5 @@ test_*.py
 check_*.py
 top_*.png
 bottom_*.png
+template_upscaled.png
 qr_stand.png
