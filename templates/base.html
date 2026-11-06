@@ -417,6 +417,62 @@
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Универсальный переключатель видимости пароля (Глазик) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input[type="password"]').forEach(function(input) {
+            if (input.dataset.eyeAttached) return;
+            input.dataset.eyeAttached = 'true';
+
+            const parent = input.parentElement;
+            let btn;
+
+            if (parent && parent.classList.contains('input-group')) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-outline-secondary border-secondary text-muted px-3';
+                btn.style.zIndex = '5';
+                btn.innerHTML = '<i class="bi bi-eye"></i>';
+                btn.title = 'Показать / скрыть пароль';
+                btn.setAttribute('aria-label', 'Показать / скрыть пароль');
+                parent.appendChild(btn);
+            } else if (parent) {
+                const group = document.createElement('div');
+                group.className = 'input-group';
+                parent.insertBefore(group, input);
+                group.appendChild(input);
+                btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-outline-secondary border-secondary text-muted px-3';
+                btn.style.zIndex = '5';
+                btn.innerHTML = '<i class="bi bi-eye"></i>';
+                btn.title = 'Показать / скрыть пароль';
+                btn.setAttribute('aria-label', 'Показать / скрыть пароль');
+                group.appendChild(btn);
+            }
+
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const icon = btn.querySelector('i');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        if (icon) {
+                            icon.className = 'bi bi-eye-slash-fill text-info';
+                        }
+                    } else {
+                        input.type = 'password';
+                        if (icon) {
+                            icon.className = 'bi bi-eye text-muted';
+                        }
+                    }
+                    input.focus();
+                });
+            }
+        });
+    });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
