@@ -52,4 +52,6 @@ apply_*.py
 generate_*.py
 test_*.py
 check_*.py
+top_*.png
+bottom_*.png
 qr_stand.png
