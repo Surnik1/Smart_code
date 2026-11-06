@@ -49,4 +49,7 @@ hdphoto*.wdp
 crop_*.png
 update_*.py
 apply_*.py
+generate_*.py
+test_*.py
+check_*.py
 qr_stand.png
