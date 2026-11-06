@@ -120,7 +120,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js';"></script>
 <script>
     const initialCode = JSON.parse(document.getElementById('starter-code-data').textContent);
     let editor = null;
@@ -128,9 +128,11 @@
     const battleId = {{ battle.id }};
     const csrfToken = '{{ csrf_token }}';
 
-    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-    require(['vs/editor/editor.main'], function() {
-        editor = monaco.editor.create(document.getElementById('battle-editor'), {
+    function initMonacoEditor() {
+        const container = document.getElementById('battle-editor');
+        if (!container || editor || typeof monaco === 'undefined') return;
+
+        editor = monaco.editor.create(container, {
             value: initialCode,
             language: 'python',
             theme: 'vs-dark',
@@ -146,7 +148,48 @@
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
             submitBtn.click();
         });
-    });
+    }
+
+    function setupFallbackEditor() {
+        const container = document.getElementById('battle-editor');
+        if (!container || editor) return;
+        container.innerHTML = '';
+        const ta = document.createElement('textarea');
+        ta.className = 'form-control font-monospace h-100 w-100 bg-dark text-light p-3 border-0';
+        ta.style.resize = 'none';
+        ta.style.fontFamily = 'Consolas, "Courier New", monospace';
+        ta.style.fontSize = '14px';
+        ta.value = initialCode;
+        container.appendChild(ta);
+        editor = {
+            getValue: () => ta.value,
+            setValue: (val) => { ta.value = val; },
+            addCommand: () => {}
+        };
+    }
+
+    if (typeof require !== 'undefined') {
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            initMonacoEditor();
+        }, function(err) {
+            console.warn('cdnjs failed, trying jsdelivr fallback...', err);
+            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                initMonacoEditor();
+            }, function() {
+                setupFallbackEditor();
+            });
+        });
+    } else {
+        setupFallbackEditor();
+    }
+
+    setTimeout(function() {
+        if (!editor) {
+            setupFallbackEditor();
+        }
+    }, 5000);
 
     const submitBtn = document.getElementById('submit-battle-btn');
     const battleResult = document.getElementById('battle-result');
