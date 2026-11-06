@@ -11,10 +11,12 @@
     }
     #monaco-container {
         width: 100%;
-        min-height: 180px;
+        min-height: 380px;
+        height: 100%;
         flex: 1 1 auto;
         border-radius: 0;
         overflow: hidden;
+        position: relative;
     }
     .description-pane {
         overflow-y: auto;
@@ -212,7 +214,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="code" id="hidden-code-input">
 
-                    <div id="monaco-container" class="flex-grow-1" style="min-height: 180px;"></div>
+                    <div id="monaco-container" class="flex-grow-1 position-relative" style="min-height: 380px; height: 100%;"></div>
 
                     <!-- Панель «Свой тест (Custom input)» -->
                     <div class="card border-0 rounded-0 bg-dark border-top border-secondary-subtle" style="flex-shrink: 0;">
@@ -368,8 +370,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Monaco Editor Loader загружается ПОСЛЕ Bootstrap 5 JS во избежание AMD-конфликта -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js';"></script>
 <script>
     const defaultStarterCode = JSON.parse(document.getElementById('starter-code-data').textContent);
     const initialCurrentCode = JSON.parse(document.getElementById('current-code-data').textContent);
@@ -380,8 +380,9 @@
 
     function initMonacoEditor() {
         const container = document.getElementById('monaco-container');
-        if (!container || editor || typeof monaco === 'undefined') return;
+        if (!container || editor || typeof monaco === 'undefined' || !monaco.editor) return;
 
+        container.innerHTML = '';
         editor = monaco.editor.create(container, {
             value: initialCurrentCode,
             language: 'python',
@@ -400,18 +401,46 @@
         });
     }
 
-    // Резервный текстовый редактор на случай проблем с сетью/CDN
+    // Резервный продвинутый текстовый редактор на случай блокировок/ошибок CDN
     function setupFallbackEditor() {
         const container = document.getElementById('monaco-container');
         if (!container || editor) return;
         container.innerHTML = '';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'w-100 h-100 d-flex flex-column bg-dark position-relative';
+        wrapper.style.minHeight = '380px';
+
         const ta = document.createElement('textarea');
-        ta.className = 'form-control font-monospace h-100 w-100 bg-dark text-light p-3 border-0';
-        ta.style.resize = 'none';
-        ta.style.fontFamily = 'Consolas, "Courier New", monospace';
+        ta.className = 'form-control font-monospace h-100 w-100 text-light p-3 border-0 flex-grow-1';
+        ta.style.background = '#1e1e1e';
+        ta.style.color = '#d4d4d4';
+        ta.style.fontFamily = 'Consolas, "Fira Code", Monaco, "Courier New", monospace';
         ta.style.fontSize = '14px';
+        ta.style.lineHeight = '1.5';
+        ta.style.resize = 'none';
+        ta.style.outline = 'none';
+        ta.style.tabSize = '4';
+        ta.spellcheck = false;
         ta.value = initialCurrentCode;
-        container.appendChild(ta);
+
+        // Поддержка Tab (вставка 4 пробелов вместо потери фокуса) и Ctrl+Enter
+        ta.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('code-form').dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+
+        wrapper.appendChild(ta);
+        container.appendChild(wrapper);
+
         editor = {
             getValue: () => ta.value,
             setValue: (val) => { ta.value = val; },
@@ -419,29 +448,61 @@
         };
     }
 
-    if (typeof require !== 'undefined') {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            initMonacoEditor();
-        }, function(err) {
-            console.warn('cdnjs failed, trying jsdelivr fallback...', err);
-            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' }});
-            require(['vs/editor/editor.main'], function() {
-                initMonacoEditor();
-            }, function() {
-                setupFallbackEditor();
-            });
-        });
-    } else {
-        setupFallbackEditor();
-    }
+    // Мульти-CDN динамический загрузчик Monaco Editor
+    (function loadMonacoWithFallbacks() {
+        const cdns = [
+            'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs',
+            'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs',
+            'https://unpkg.com/monaco-editor@0.45.0/min/vs'
+        ];
+        let cdnIdx = 0;
 
-    // Защитный таймаут на случай медленной загрузки скриптов
-    setTimeout(function() {
-        if (!editor) {
-            setupFallbackEditor();
+        function tryCdn(idx) {
+            if (idx >= cdns.length) {
+                if (!editor) setupFallbackEditor();
+                return;
+            }
+            const currentCdn = cdns[idx];
+            const script = document.createElement('script');
+            script.src = currentCdn + '/loader.js';
+            script.async = true;
+
+            script.onload = function() {
+                if (typeof window.require !== 'undefined') {
+                    try {
+                        window.require.config({ paths: { 'vs': currentCdn } });
+                        window.require(['vs/editor/editor.main'], function() {
+                            initMonacoEditor();
+                        }, function(err) {
+                            console.warn('Monaco require main failed on CDN:', currentCdn, err);
+                            tryCdn(idx + 1);
+                        });
+                    } catch (e) {
+                        tryCdn(idx + 1);
+                    }
+                } else {
+                    tryCdn(idx + 1);
+                }
+            };
+
+            script.onerror = function() {
+                console.warn('Monaco loader.js failed on CDN:', currentCdn);
+                tryCdn(idx + 1);
+            };
+
+            document.head.appendChild(script);
         }
-    }, 5000);
+
+        tryCdn(0);
+
+        // Страховочный таймаут: если через 4 секунды редактор не поднялся, включаем красивый fallback
+        setTimeout(function() {
+            if (!editor) {
+                console.warn('Monaco CDN timeout: activating resilient fallback editor.');
+                setupFallbackEditor();
+            }
+        }, 4000);
+    })();
 
     // Сброс кода к дефолтному шаблону
     document.getElementById('reset-code-btn').addEventListener('click', function() {

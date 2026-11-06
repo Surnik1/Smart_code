@@ -120,7 +120,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs/loader.js';"></script>
 <script>
     const initialCode = JSON.parse(document.getElementById('starter-code-data').textContent);
     let editor = null;
@@ -130,8 +129,9 @@
 
     function initMonacoEditor() {
         const container = document.getElementById('battle-editor');
-        if (!container || editor || typeof monaco === 'undefined') return;
+        if (!container || editor || typeof monaco === 'undefined' || !monaco.editor) return;
 
+        container.innerHTML = '';
         editor = monaco.editor.create(container, {
             value: initialCode,
             language: 'python',
@@ -154,12 +154,33 @@
         const container = document.getElementById('battle-editor');
         if (!container || editor) return;
         container.innerHTML = '';
+
         const ta = document.createElement('textarea');
-        ta.className = 'form-control font-monospace h-100 w-100 bg-dark text-light p-3 border-0';
-        ta.style.resize = 'none';
-        ta.style.fontFamily = 'Consolas, "Courier New", monospace';
+        ta.className = 'form-control font-monospace h-100 w-100 text-light p-3 border-0';
+        ta.style.background = '#1e1e1e';
+        ta.style.color = '#d4d4d4';
+        ta.style.fontFamily = 'Consolas, "Fira Code", Monaco, "Courier New", monospace';
         ta.style.fontSize = '14px';
+        ta.style.lineHeight = '1.5';
+        ta.style.resize = 'none';
+        ta.style.outline = 'none';
+        ta.style.tabSize = '4';
+        ta.spellcheck = false;
         ta.value = initialCode;
+
+        ta.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                submitBtn.click();
+            }
+        });
+
         container.appendChild(ta);
         editor = {
             getValue: () => ta.value,
@@ -168,28 +189,57 @@
         };
     }
 
-    if (typeof require !== 'undefined') {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            initMonacoEditor();
-        }, function(err) {
-            console.warn('cdnjs failed, trying jsdelivr fallback...', err);
-            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.36.1/min/vs' }});
-            require(['vs/editor/editor.main'], function() {
-                initMonacoEditor();
-            }, function() {
-                setupFallbackEditor();
-            });
-        });
-    } else {
-        setupFallbackEditor();
-    }
+    // Мульти-CDN динамический загрузчик Monaco Editor
+    (function loadMonacoWithFallbacks() {
+        const cdns = [
+            'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs',
+            'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs',
+            'https://unpkg.com/monaco-editor@0.45.0/min/vs'
+        ];
+        let cdnIdx = 0;
 
-    setTimeout(function() {
-        if (!editor) {
-            setupFallbackEditor();
+        function tryCdn(idx) {
+            if (idx >= cdns.length) {
+                if (!editor) setupFallbackEditor();
+                return;
+            }
+            const currentCdn = cdns[idx];
+            const script = document.createElement('script');
+            script.src = currentCdn + '/loader.js';
+            script.async = true;
+
+            script.onload = function() {
+                if (typeof window.require !== 'undefined') {
+                    try {
+                        window.require.config({ paths: { 'vs': currentCdn } });
+                        window.require(['vs/editor/editor.main'], function() {
+                            initMonacoEditor();
+                        }, function(err) {
+                            tryCdn(idx + 1);
+                        });
+                    } catch (e) {
+                        tryCdn(idx + 1);
+                    }
+                } else {
+                    tryCdn(idx + 1);
+                }
+            };
+
+            script.onerror = function() {
+                tryCdn(idx + 1);
+            };
+
+            document.head.appendChild(script);
         }
-    }, 5000);
+
+        tryCdn(0);
+
+        setTimeout(function() {
+            if (!editor) {
+                setupFallbackEditor();
+            }
+        }, 4000);
+    })();
 
     const submitBtn = document.getElementById('submit-battle-btn');
     const battleResult = document.getElementById('battle-result');

@@ -4013,6 +4013,13 @@ def run_seeder(stdout=None, style=None):
             admin_user.save()
         log(f"[INFO] Superuser '{admin_username}' already exists.")
 
+    # Проверка: если база уже заполнена (120+ задач и 200+ пользователей), пропускаем тяжелый повторный сидинг
+    existing_tasks = Task.objects.count()
+    existing_users = User.objects.count()
+    if existing_tasks >= 120 and existing_users >= 200:
+        log(f"[INFO] База данных уже содержит {existing_tasks} задач и {existing_users} пользователей. Пропуск повторного сидинга.")
+        return
+
     # 3. Seed Tasks, Tags and Test Cases
     created_tasks = 0
     updated_tasks = 0
