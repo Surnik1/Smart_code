@@ -4069,6 +4069,13 @@ def run_seeder(stdout=None, style=None):
         is_success=True
     )
 
+    # Автоматическое наполнение 220+ реалистичными пользователями и лидербордом
+    try:
+        from scripts.seed_mock_users import run as run_mock_users
+        run_mock_users()
+    except Exception as e:
+        log(f"[WARN] Не удалось засеять мок-пользователей: {e}")
+
 
 if __name__ == '__main__':
     run_seeder()
